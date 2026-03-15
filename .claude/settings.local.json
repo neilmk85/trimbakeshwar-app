@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter create:*)",
+      "Bash(open -a \"Visual Studio Code\" /Users/nilesh/development/flutter_apps/trimbakeshwar_admin)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(open -a \"Visual Studio Code\" /Users/nilesh/development/trimbakeshwar_server)"
+    ]
+  }
+}

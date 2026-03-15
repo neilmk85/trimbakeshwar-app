@@ -1,0 +1,9 @@
+export 'splash_screen.dart';
+export 'home_screen.dart';
+export 'trimbakeshwar_screen.dart';
+export 'guruji_screen.dart';
+export 'temple_screen.dart';
+export 'pooja_screen.dart';
+export 'gallery_screen.dart';
+export 'fullscreen_gallery.dart';
+export 'contact_screen.dart';
