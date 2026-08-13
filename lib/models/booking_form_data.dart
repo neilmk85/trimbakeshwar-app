@@ -1,22 +1,44 @@
 import 'package:flutter/material.dart';
 
-/// Represents a single pooja item in the booking cart.
+/// Represents a single booking item — either a pooja or a room-only stay.
 class BookingEntry {
   final String poojaName;
-  final DateTime poojaDate;
-  final int numberOfPeople;
+  final DateTime? poojaDate;
+  final DateTime? checkInDate;
+  final String bookingType; // 'pooja' | 'room_only'
   final String gotra;
-  final int totalAmount;
+  final int poojaAmount;   // 0 for room-only bookings
+  final bool isPrivatePooja;
   final Color poojaColor;
+
+  // Stay details (optional — 0 means no stay booked)
+  final int numberOfRooms;
+  final int numberOfNights;
+  final int numberOfGuests;
+  final int stayRatePerRoom; // per room per night
+  final int? selectedRoomId;
+  final String? selectedRoomName;
 
   const BookingEntry({
     required this.poojaName,
-    required this.poojaDate,
-    required this.numberOfPeople,
+    this.poojaDate,
+    this.checkInDate,
+    this.bookingType = 'pooja',
     required this.gotra,
-    required this.totalAmount,
+    required this.poojaAmount,
     required this.poojaColor,
+    this.isPrivatePooja = false,
+    this.numberOfRooms = 0,
+    this.numberOfNights = 0,
+    this.numberOfGuests = 1,
+    this.stayRatePerRoom = 0,
+    this.selectedRoomId,
+    this.selectedRoomName,
   });
+
+  int get stayAmount => stayRatePerRoom * numberOfRooms * numberOfNights;
+
+  int get totalAmount => poojaAmount + stayAmount;
 }
 
 /// All data collected on the BookingScreen, passed to PaymentScreen.

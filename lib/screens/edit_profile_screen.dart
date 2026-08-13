@@ -5,7 +5,8 @@ import '../services/auth_service.dart';
 import '../widgets/country_picker_dialog.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  final String? initialEmail;
+  const EditProfileScreen({super.key, this.initialEmail});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -14,6 +15,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
+  late final TextEditingController _phoneCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _pwdCtrl;
   late final TextEditingController _cityCtrl;
@@ -26,8 +28,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     final user = AuthService.currentUser!;
-    _nameCtrl = TextEditingController(text: user.fullName);
-    _emailCtrl = TextEditingController(text: user.email);
+    final storedName = user.fullName.trim().toLowerCase();
+    _nameCtrl = TextEditingController(
+      text: (storedName == 'user' || storedName == 'guest') ? '' : user.fullName,
+    );
+    _phoneCtrl = TextEditingController(text: user.phone);
+    final emailToUse = user.email.trim().isNotEmpty ? user.email : (widget.initialEmail ?? '');
+    _emailCtrl = TextEditingController(text: emailToUse);
     _pwdCtrl = TextEditingController(text: user.password);
     _cityCtrl = TextEditingController(text: user.city);
     _pinCtrl = TextEditingController(text: user.pinCode);
@@ -37,6 +44,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _pwdCtrl.dispose();
     _cityCtrl.dispose();
@@ -50,6 +58,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     await Future.delayed(const Duration(milliseconds: 300));
     final updated = AuthService.currentUser!.copyWith(
       fullName: _nameCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
       email: _emailCtrl.text.trim(),
       password: _pwdCtrl.text.isNotEmpty ? _pwdCtrl.text : null,
       city: _cityCtrl.text.trim(),
@@ -126,6 +135,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 14),
               _field(
+                controller: _phoneCtrl,
+                label: 'Phone Number',
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                readOnly: AuthService.currentUser!.phone.trim().isNotEmpty,
+              ),
+              const SizedBox(height: 14),
+              _field(
                 controller: _emailCtrl,
                 label: 'Email Address',
                 icon: Icons.email_outlined,
@@ -163,25 +181,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 12),
               _field(
                 controller: _cityCtrl,
-                label: 'City',
+                label: 'City (optional)',
                 icon: Icons.location_city_outlined,
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Enter your city'
-                    : null,
               ),
               const SizedBox(height: 14),
               _field(
                 controller: _pinCtrl,
-                label: 'Pin Code',
+                label: 'Pin Code (optional)',
                 icon: Icons.pin_drop_outlined,
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(6),
                 ],
-                validator: (v) => (v == null || v.trim().length < 6)
-                    ? 'Enter a valid 6-digit pin code'
-                    : null,
               ),
               const SizedBox(height: 14),
               GestureDetector(
@@ -269,6 +281,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
     bool obscureText = false,
+    bool readOnly = false,
     Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
@@ -277,9 +290,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       obscureText: obscureText,
+      readOnly: readOnly,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        floatingLabelStyle: const TextStyle(color: AppColors.primary, fontSize: 12),
         prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
         suffixIcon: suffixIcon,
         filled: true,

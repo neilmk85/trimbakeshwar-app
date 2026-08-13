@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../constants/app_l10n.dart';
 import '../constants/constants.dart';
+import '../utils/app_route.dart';
+import '../widgets/app_image.dart';
 import 'fullscreen_gallery.dart';
 
 class GalleryScreen extends StatelessWidget {
@@ -7,10 +10,10 @@ class GalleryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = AppData.galleryItems;
+    final items = AppData.galleryItems;
 
     return GridView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, MediaQuery.of(context).padding.bottom + 12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
@@ -25,8 +28,8 @@ class GalleryScreen extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => FullScreenGallery(
+              fadeSlideRoute(
+                (_) => FullScreenGallery(
                   items: items,
                   initialIndex: index,
                 ),
@@ -67,26 +70,30 @@ class _GalleryTile extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Gradient background
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      color.withOpacity(0.7),
-                      color,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              // Real image or gradient fallback
+              if (item['image'] != null)
+                AppImage(
+                  src: item['image'] as String,
+                  fit: BoxFit.cover,
+                  fallbackColor: color,
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color.withOpacity(0.7), color],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      item['icon'] as IconData,
+                      size: 50,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
                   ),
                 ),
-                child: Center(
-                  child: Icon(
-                    item['icon'] as IconData,
-                    size: 50,
-                    color: Colors.white.withOpacity(0.5),
-                  ),
-                ),
-              ),
               // Name overlay at bottom
               Positioned(
                 bottom: 0,
@@ -106,7 +113,7 @@ class _GalleryTile extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    item['name'] as String,
+                    AppL10n.s.galleryItemName(item['name'] as String),
                     style: const TextStyle(
                       color: AppColors.white,
                       fontWeight: FontWeight.w600,

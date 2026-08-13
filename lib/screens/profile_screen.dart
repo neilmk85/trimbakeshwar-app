@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../utils/app_route.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -53,7 +54,7 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 28),
                 OutlinedButton.icon(
                   onPressed: () {
-                    AuthService.logout();
+                    AuthService.logout().ignore();
                     Navigator.pop(context);
                   },
                   icon: const Icon(Icons.logout, color: Colors.red),
@@ -93,7 +94,7 @@ class ProfileScreen extends StatelessWidget {
           tooltip: 'Edit Profile',
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+            fadeSlideRoute((_) => const EditProfileScreen()),
           ),
         ),
       ],

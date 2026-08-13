@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../constants/app_data.dart';
 import '../models/pooja_model.dart';
 import 'api_service.dart';
 
@@ -7,16 +8,24 @@ class PoojaService {
 
   static final poojas = ValueNotifier<List<PoojaModel>>([]);
   static final isLoading = ValueNotifier<bool>(false);
-  static bool _loaded = false;
+  static final error = ValueNotifier<String?>(null);
 
-  static Future<void> load({bool force = false}) async {
-    if (_loaded && !force) return;
-    isLoading.value = true;
+  static Future<void> load({bool force = false, bool silent = false}) async {
+    if (!force && poojas.value.isNotEmpty) return;
+    if (!silent) isLoading.value = true;
+    error.value = null;
     final result = await ApiService.getPoojas();
-    if (result.isNotEmpty) {
-      poojas.value = result;
-      _loaded = true;
+    if (result.data.isNotEmpty) {
+      poojas.value = result.data;
+    } else {
+      // Server unreachable — fall back to bundled AppData
+      if (poojas.value.isEmpty) {
+        poojas.value = AppData.poojas
+            .map((m) => PoojaModel.fromAppData(m))
+            .toList();
+      }
+      if (result.error != null) error.value = result.error;
     }
-    isLoading.value = false;
+    if (!silent) isLoading.value = false;
   }
 }

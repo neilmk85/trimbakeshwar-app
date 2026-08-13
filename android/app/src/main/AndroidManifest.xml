@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required for showing notifications on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <!-- url_launcher: Required queries for Android 11+ (API 30) -->
     <queries>
@@ -25,7 +27,8 @@
     <application
         android:label="Trimbakeshwar"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
@@ -47,5 +50,26 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Disable Impeller to avoid shader compilation issues on release builds -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
+        <!-- FCM: default notification icon (must be white-on-transparent) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <!-- FCM: default notification channel for background messages -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="trimbakeshwar_v2" />
+
+        <!-- Facebook Login -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id" />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token" />
     </application>
 </manifest>

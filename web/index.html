@@ -10,8 +10,60 @@
   <meta name="apple-mobile-web-app-title" content="Trimbakeshwar">
   <link rel="manifest" href="manifest.json">
   <title>Trimbakeshwar</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
+  <script>
+    // Razorpay Web checkout bridge — called from Flutter via dart:js
+    function openRazorpayCheckout(options) {
+      try {
+        var rzp = new Razorpay({
+          key:         options.key,
+          amount:      options.amount,
+          order_id:    options.order_id,
+          currency:    options.currency || 'INR',
+          name:        options.name,
+          description: options.description,
+          prefill: {
+            contact: options.prefill_contact || '',
+            email:   options.prefill_email   || '',
+            name:    options.prefill_name    || '',
+          },
+          theme: { color: options.theme_color || '#B71C1C' },
+          handler: function(response) {
+            // Call back into Flutter on success
+            if (window._rzpSuccessCallback) {
+              window._rzpSuccessCallback(
+                response.razorpay_payment_id,
+                response.razorpay_order_id,
+                response.razorpay_signature
+              );
+            }
+          },
+          modal: {
+            ondismiss: function() {
+              if (window._rzpErrorCallback) {
+                window._rzpErrorCallback('dismissed', 'Payment was cancelled.');
+              }
+            }
+          }
+        });
+        rzp.on('payment.failed', function(response) {
+          if (window._rzpErrorCallback) {
+            window._rzpErrorCallback(
+              response.error.code,
+              response.error.description
+            );
+          }
+        });
+        rzp.open();
+      } catch(e) {
+        if (window._rzpErrorCallback) {
+          window._rzpErrorCallback('exception', e.toString());
+        }
+      }
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

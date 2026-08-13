@@ -1,9 +1,24 @@
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_strings.dart';
 import '../models/booking_form_data.dart';
 import '../models/order_model.dart';
+import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/order_service.dart';
+import '../services/pooja_service.dart';
+import '../services/razorpay_web_service_stub.dart'
+    if (dart.library.js) '../services/razorpay_web_service.dart';
+
+String _shortOrderId(DateTime now) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  final rng = math.Random(now.millisecondsSinceEpoch);
+  final suffix = List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
+  return 'TP-$suffix';
+}
 
 class PaymentScreen extends StatefulWidget {
   final BookingFormData data;
@@ -14,88 +29,184 @@ class PaymentScreen extends StatefulWidget {
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-enum _PaymentMethod { upiApp, upiId }
-
-enum _UpiApp { gpay, phonepe, paytm, bhim }
-
-class _PaymentScreenState extends State<PaymentScreen> {
-  _PaymentMethod _method = _PaymentMethod.upiApp;
-  _UpiApp _selectedApp = _UpiApp.gpay;
-  final _upiIdCtrl = TextEditingController();
+class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserver {
+  late final Razorpay _razorpay;
   bool _processing = false;
+  bool _razorpayOpened = false;
 
   BookingFormData get _data => widget.data;
   Color get _color => _data.primaryColor;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
   void dispose() {
-    _upiIdCtrl.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _razorpay.clear();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Razorpay sometimes doesn't fire EVENT_PAYMENT_ERROR when user dismisses
+    // the sheet by pressing back. Reset spinner when app resumes in that case.
+    if (state == AppLifecycleState.resumed && _razorpayOpened && _processing) {
+      if (mounted) setState(() { _processing = false; _razorpayOpened = false; });
+    }
+  }
+
   String _formatDate(DateTime d) {
-    const months = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${d.day} ${months[d.month]} ${d.year}';
   }
 
   String _formatAmount(int amount) {
     final str = amount.toString();
     if (str.length <= 3) return '₹$str';
-    if (str.length <= 5) {
-      return '₹${str.substring(0, str.length - 3)},${str.substring(str.length - 3)}';
-    }
+    if (str.length <= 5) return '₹${str.substring(0, str.length - 3)},${str.substring(str.length - 3)}';
     return '₹${str.substring(0, str.length - 5)},${str.substring(str.length - 5, str.length - 3)},${str.substring(str.length - 3)}';
   }
 
-  Future<void> _pay() async {
-    if (_method == _PaymentMethod.upiId) {
-      final id = _upiIdCtrl.text.trim();
-      if (id.isEmpty || !id.contains('@')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please enter a valid UPI ID (e.g. name@upi)'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        return;
-      }
-    }
+  String _colorHex(Color c) =>
+      '#${c.r.round().toRadixString(16).padLeft(2, '0')}'
+      '${c.g.round().toRadixString(16).padLeft(2, '0')}'
+      '${c.b.round().toRadixString(16).padLeft(2, '0')}';
+
+  Future<void> _startPayment() async {
+    PoojaService.load(force: true, silent: true);
     setState(() => _processing = true);
 
-    final userPhone = AuthService.currentUser!.phone;
-    final now = DateTime.now();
-    final baseOrderId = 'ORD${now.millisecondsSinceEpoch}';
+    try {
+      final user = AuthService.currentUser!;
+      final now = DateTime.now();
+      final baseOrderId = _shortOrderId(now);
 
-    bool allSaved = true;
+      // Step 1 — create Razorpay order on server
+      final result = await ApiService.createRazorpayOrder(_data.grandTotal, baseOrderId);
+      if (result.data == null) {
+        if (mounted) {
+          setState(() => _processing = false);
+          _showErrorDialog('Payment Failed', result.error ?? 'Could not initiate payment. Please try again.');
+        }
+        return;
+      }
+
+      final orderData = result.data!;
+      _pendingOrderId = baseOrderId;
+      _pendingRazorpayOrderId = orderData['razorpayOrderId'] as String;
+      _pendingBookings = _buildBookingPayloads(baseOrderId, now, user.phone);
+
+      if (kIsWeb) {
+        // ── Web: use JS SDK ───────────────────────────────────────────────────
+        if (mounted) setState(() => _processing = false);
+        final webResult = await RazorpayWebService.open(
+          key: orderData['keyId'] as String,
+          amount: (orderData['amount'] as num).toInt(),
+          orderId: _pendingRazorpayOrderId,
+          currency: orderData['currency'] as String? ?? 'INR',
+          name: AppStrings.gurujiName,
+          description: _data.entries.map((e) => e.poojaName.isNotEmpty ? e.poojaName : e.selectedRoomName ?? 'Room').join(', '),
+          prefillContact: user.phone,
+          prefillEmail: user.email.isNotEmpty ? user.email : '',
+          prefillName: user.fullName,
+          themeColor: '#B71C1C',
+        );
+
+        if (!mounted) return;
+        if (webResult.success) {
+          await _onPaymentSuccess(
+            paymentId: webResult.paymentId,
+            razorpayOrderId: webResult.orderId,
+            signature: webResult.signature,
+          );
+        } else if (webResult.errorCode == 'dismissed') {
+          // User closed the modal — no error dialog needed
+        } else {
+          _showErrorDialog(
+            'Payment Failed (${webResult.errorCode})',
+            webResult.errorMessage ?? 'Payment could not be completed.',
+          );
+        }
+      } else {
+        // ── Mobile: use razorpay_flutter plugin ───────────────────────────────
+        final options = {
+          'key': orderData['keyId'] as String,
+          'amount': (orderData['amount'] as num).toInt(),
+          'order_id': _pendingRazorpayOrderId,
+          'currency': orderData['currency'] as String? ?? 'INR',
+          'name': AppStrings.gurujiName,
+          'description': _data.entries.map((e) => e.poojaName).join(', '),
+          'prefill': {
+            'contact': user.phone,
+            'email': user.email.isNotEmpty ? user.email : 'devotee@trimbakeshwar.com',
+            'name': user.fullName,
+          },
+          'theme': {'color': '#B71C1C'},
+        };
+        _razorpayOpened = true;
+        _razorpay.open(options);
+        if (mounted) setState(() => _processing = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _processing = false);
+        _showErrorDialog('Payment Error', e.toString());
+      }
+    }
+  }
+
+  Future<void> _onPaymentSuccess({
+    required String paymentId,
+    required String razorpayOrderId,
+    required String signature,
+  }) async {
+    setState(() => _processing = true);
+    final verified = await ApiService.verifyAndCreateBookings(
+      razorpayOrderId: razorpayOrderId,
+      paymentId: paymentId,
+      signature: signature,
+      bookings: _pendingBookings,
+    );
+    _updateLocalOrders();
+    setState(() => _processing = false);
+    if (!mounted) return;
+    if (verified) {
+      _showSuccessDialog();
+    } else {
+      _showError('Payment received but booking could not be saved. Please contact support with Payment ID: $paymentId');
+    }
+  }
+
+  void _updateLocalOrders() {
+    final now = DateTime.now();
     for (int i = 0; i < _data.entries.length; i++) {
       final entry = _data.entries[i];
-      final orderId =
-          _data.entries.length > 1 ? '${baseOrderId}_${i + 1}' : baseOrderId;
-
-      final saved = await OrderService.addOrder(
+      final orderId = _data.entries.length > 1 ? '${_pendingOrderId}_${i + 1}' : _pendingOrderId;
+      OrderService.ordersNotifier.value = [
         OrderModel(
           orderId: orderId,
+          bookingType: entry.bookingType,
           poojaName: entry.poojaName,
           poojaDate: entry.poojaDate,
-          numberOfPeople: entry.numberOfPeople,
+          checkInDate: entry.checkInDate,
           gotra: entry.gotra,
+          numberOfPeople: entry.numberOfGuests,
+          poojaRatePerPerson: entry.poojaAmount,
+          isPrivatePooja: entry.isPrivatePooja,
           totalAmount: entry.totalAmount,
+          numberOfRooms: entry.numberOfRooms,
+          numberOfNights: entry.numberOfNights,
+          stayRatePerRoom: entry.stayRatePerRoom,
+          selectedRoomId: entry.selectedRoomId,
+          selectedRoomName: entry.selectedRoomName,
           bookedOn: now,
           poojaColor: entry.poojaColor,
           bookedForName: _data.forMyself ? null : _data.bookedForName,
@@ -105,28 +216,116 @@ class _PaymentScreenState extends State<PaymentScreen> {
           bookedForZipCode: _data.forMyself ? null : _data.bookedForZipCode,
           bookedForCountry: _data.forMyself ? null : _data.bookedForCountry,
         ),
-        userPhone,
-      );
-      if (!saved) allSaved = false;
+        ...OrderService.ordersNotifier.value,
+      ];
     }
+  }
 
+  // Stored for use in callbacks
+  String _pendingOrderId = '';
+  String _pendingRazorpayOrderId = '';
+  List<Map<String, dynamic>> _pendingBookings = [];
+
+  List<Map<String, dynamic>> _buildBookingPayloads(String baseOrderId, DateTime now, String userPhone) {
+    return List.generate(_data.entries.length, (i) {
+      final entry = _data.entries[i];
+      final orderId = _data.entries.length > 1 ? '${baseOrderId}_${i + 1}' : baseOrderId;
+      final isRoomOnly = entry.bookingType == 'room_only';
+      return {
+        'orderId': orderId,
+        'bookingType': entry.bookingType,
+        if (!isRoomOnly) 'poojaName': entry.poojaName,
+        if (!isRoomOnly && entry.poojaDate != null)
+          'poojaDate': '${entry.poojaDate!.year}-${entry.poojaDate!.month.toString().padLeft(2, '0')}-${entry.poojaDate!.day.toString().padLeft(2, '0')}',
+        if (entry.checkInDate != null)
+          'checkInDate': '${entry.checkInDate!.year}-${entry.checkInDate!.month.toString().padLeft(2, '0')}-${entry.checkInDate!.day.toString().padLeft(2, '0')}',
+        if (entry.selectedRoomId != null) 'roomId': entry.selectedRoomId,
+        if (entry.selectedRoomName != null) 'roomName': entry.selectedRoomName,
+        'gotra': entry.gotra,
+        'totalAmount': entry.totalAmount,
+        'numberOfPeople': entry.numberOfGuests,
+        'isPrivatePooja': entry.isPrivatePooja,
+        'poojaRatePerPerson': entry.poojaAmount,
+        'numberOfRooms': entry.numberOfRooms,
+        'numberOfNights': entry.numberOfNights,
+        'stayRatePerRoom': entry.stayRatePerRoom,
+        'poojaColorHex': _colorHex(entry.poojaColor),
+        'bookedOn': now.toIso8601String(),
+        'userPhone': userPhone,
+        if (!_data.forMyself && _data.bookedForName != null) 'bookedForName': _data.bookedForName,
+        if (!_data.forMyself && _data.bookedForPhone != null) 'bookedForPhone': _data.bookedForPhone,
+        if (!_data.forMyself && _data.bookedForEmail != null) 'bookedForEmail': _data.bookedForEmail,
+        if (!_data.forMyself && _data.bookedForCity != null) 'bookedForCity': _data.bookedForCity,
+        if (!_data.forMyself && _data.bookedForZipCode != null) 'bookedForZipCode': _data.bookedForZipCode,
+        if (!_data.forMyself) 'bookedForCountry': _data.bookedForCountry,
+      };
+    });
+  }
+
+  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    _razorpayOpened = false;
+    await _onPaymentSuccess(
+      paymentId: response.paymentId ?? '',
+      razorpayOrderId: response.orderId ?? _pendingRazorpayOrderId,
+      signature: response.signature ?? '',
+    );
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    _razorpayOpened = false;
     setState(() => _processing = false);
-    if (!mounted) return;
+    _showErrorDialog(
+      'Payment Error (code ${response.code})',
+      response.message ?? 'Payment failed. Please try again.',
+    );
+  }
 
-    if (allSaved) {
-      _showSuccessDialog();
-    } else {
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    _razorpayOpened = false;
+    setState(() => _processing = false);
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-              'Booking could not be saved. Please check your connection and try again.'),
+          content: Text('External wallet selected: ${response.walletName}'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red.shade700,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          const Icon(Icons.error_outline, color: Colors.red),
+          const SizedBox(width: 8),
+          Text(title, style: const TextStyle(fontSize: 16)),
+        ]),
+        content: Text(message, style: const TextStyle(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red.shade700,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   void _showSuccessDialog() {
@@ -142,22 +341,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
             Container(
               width: 70,
               height: 70,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE8F5E9),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle,
-                  color: Color(0xFF2E7D32), size: 42),
+              decoration: const BoxDecoration(color: Color(0xFFE8F5E9), shape: BoxShape.circle),
+              child: const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 42),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Booking Confirmed!',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text('Booking Confirmed!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
               _data.entries.length == 1
-                  ? 'Your ${_data.entries.first.poojaName} has been booked for ${_formatDate(_data.entries.first.poojaDate)}.'
+                  ? 'Your booking has been confirmed for ${_data.entries.first.checkInDate != null ? _formatDate(_data.entries.first.checkInDate!) : _data.entries.first.poojaDate != null ? _formatDate(_data.entries.first.poojaDate!) : '—'}.'
                   : '$poojaNames have been booked successfully.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.grey700, fontSize: 14),
@@ -173,12 +365,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _color,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text('Back to Home',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                child: const Text('Back to Home', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -194,10 +384,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       appBar: AppBar(
         title: const Text(
           'Payment',
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 0.5),
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -222,7 +409,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               children: [
                 _buildBookingSummary(),
                 const SizedBox(height: 16),
-                _buildPaymentOptions(),
+                _buildPaymentInfo(),
               ],
             ),
           ),
@@ -234,26 +421,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
               child: ElevatedButton(
-                onPressed: _processing ? null : _pay,
+                onPressed: _processing ? null : _startPayment,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _color,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 2,
                 ),
                 child: _processing
                     ? const SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.5),
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                       )
                     : Text(
                         'Pay Now  ${_formatAmount(_data.grandTotal)}',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
               ),
             ),
@@ -278,57 +462,42 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     if (_data.entries.length > 1)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
-                        child: Text(
-                          entry.poojaName,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: entry.poojaColor),
-                        ),
+                        child: Text(entry.poojaName,
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: entry.poojaColor)),
                       ),
-                    _summaryRow(Icons.auto_awesome_outlined, 'Pooja',
-                        entry.poojaName),
+                    _summaryRow(Icons.auto_awesome_outlined, 'Pooja', entry.poojaName),
                     const SizedBox(height: 6),
-                    _summaryRow(Icons.calendar_today_outlined, 'Date',
-                        _formatDate(entry.poojaDate)),
+                    _summaryRow(Icons.calendar_today_outlined, 'Date', entry.poojaDate != null ? _formatDate(entry.poojaDate!) : entry.checkInDate != null ? _formatDate(entry.checkInDate!) : '—'),
                     const SizedBox(height: 6),
-                    _summaryRow(Icons.people_outline, 'People',
-                        '${entry.numberOfPeople}'),
+                    _summaryRow(Icons.family_restroom_outlined, 'Gotra', entry.gotra),
                     const SizedBox(height: 6),
-                    _summaryRow(
-                        Icons.family_restroom_outlined, 'Gotra', entry.gotra),
-                    const SizedBox(height: 6),
-                    _summaryRow(Icons.currency_rupee_outlined, 'Amount',
-                        _formatAmount(entry.totalAmount)),
-                    if (_data.entries.last != entry)
-                      Divider(color: Colors.grey.shade200, height: 16),
+                    _summaryRow(Icons.currency_rupee_outlined, 'Pooja Amount', _formatAmount(entry.poojaAmount)),
+                    if (entry.numberOfNights > 0) ...[
+                      const SizedBox(height: 6),
+                      _summaryRow(Icons.hotel_outlined, 'Stay',
+                          '${entry.numberOfRooms} room(s) × ${entry.numberOfNights} night(s)'),
+                      const SizedBox(height: 6),
+                      _summaryRow(Icons.currency_rupee_outlined, 'Stay Amount', _formatAmount(entry.stayAmount)),
+                    ],
+                    if (_data.entries.last != entry) Divider(color: Colors.grey.shade200, height: 16),
                   ],
                 ),
               )),
           if (!_data.forMyself && _data.bookedForName != null) ...[
             Divider(color: Colors.grey.shade200, height: 16),
-            _summaryRow(
-                Icons.person_outline, 'Booked For', _data.bookedForName!),
+            _summaryRow(Icons.person_outline, 'Booked For', _data.bookedForName!),
             if (_data.bookedForPhone != null) ...[
               const SizedBox(height: 6),
-              _summaryRow(Icons.phone_outlined, 'Contact',
-                  _data.bookedForPhone!),
+              _summaryRow(Icons.phone_outlined, 'Contact', _data.bookedForPhone!),
             ],
           ],
           Divider(color: Colors.grey.shade200, height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total Amount',
-                  style:
-                      TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              Text(
-                _formatAmount(_data.grandTotal),
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _color),
-              ),
+              const Text('Total Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(_formatAmount(_data.grandTotal),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _color)),
             ],
           ),
         ],
@@ -336,183 +505,58 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Widget _buildPaymentOptions() {
+  Widget _buildPaymentInfo() {
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader(Icons.payment_outlined, 'Choose Payment Method'),
-          const SizedBox(height: 16),
-          _methodTile(
-            value: _PaymentMethod.upiApp,
-            title: 'Pay with UPI App',
-            icon: Icons.smartphone_outlined,
-            child: _method == _PaymentMethod.upiApp ? _buildUpiApps() : null,
+          _cardHeader(Icons.payment_outlined, 'Secure Payment'),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Icon(Icons.lock_outline, size: 16, color: Colors.green.shade700),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Powered by Razorpay. Pay securely via UPI, Cards, Net Banking, or Wallets.',
+                  style: TextStyle(fontSize: 13, color: AppColors.grey700),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          _methodTile(
-            value: _PaymentMethod.upiId,
-            title: 'Enter UPI ID',
-            icon: Icons.alternate_email,
-            child:
-                _method == _PaymentMethod.upiId ? _buildUpiIdField() : null,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _paymentChip(Icons.account_balance_outlined, 'UPI'),
+              _paymentChip(Icons.credit_card_outlined, 'Cards'),
+              _paymentChip(Icons.account_balance, 'Net Banking'),
+              _paymentChip(Icons.wallet_outlined, 'Wallets'),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _methodTile({
-    required _PaymentMethod value,
-    required String title,
-    required IconData icon,
-    Widget? child,
-  }) {
-    final selected = _method == value;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+  Widget _paymentChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: selected ? _color : Colors.grey.shade300,
-          width: selected ? 1.5 : 1,
-        ),
-        color:
-            selected ? _color.withValues(alpha: 0.04) : Colors.transparent,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey.shade50,
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => setState(() => _method = value),
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Radio<_PaymentMethod>(
-                    value: value,
-                    groupValue: _method,
-                    onChanged: (v) => setState(() => _method = v!),
-                    activeColor: _color,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(icon,
-                      size: 20,
-                      color: selected ? _color : AppColors.grey700),
-                  const SizedBox(width: 10),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: selected ? _color : AppColors.grey800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (child != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-              child: child,
-            ),
+          Icon(icon, size: 14, color: AppColors.grey700),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.grey700)),
         ],
       ),
     );
-  }
-
-  Widget _buildUpiApps() {
-    return Column(
-      children: [
-        const SizedBox(height: 4),
-        ..._UpiApp.values.map((app) => _upiAppTile(app)),
-      ],
-    );
-  }
-
-  Widget _upiAppTile(_UpiApp app) {
-    final selected = _selectedApp == app;
-    return InkWell(
-      onTap: () => setState(() => _selectedApp = app),
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Radio<_UpiApp>(
-              value: app,
-              groupValue: _selectedApp,
-              onChanged: (v) => setState(() => _selectedApp = v!),
-              activeColor: _color,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-            ),
-            const SizedBox(width: 8),
-            _UpiLogo(app: app),
-            const SizedBox(width: 12),
-            Text(
-              _appName(app),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUpiIdField() {
-    return Column(
-      children: [
-        const SizedBox(height: 8),
-        TextField(
-          controller: _upiIdCtrl,
-          keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            hintText: 'yourname@upi',
-            prefixIcon: const Icon(Icons.alternate_email,
-                color: AppColors.primary, size: 20),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.5),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _appName(_UpiApp app) {
-    switch (app) {
-      case _UpiApp.gpay:
-        return 'Google Pay';
-      case _UpiApp.phonepe:
-        return 'PhonePe';
-      case _UpiApp.paytm:
-        return 'Paytm';
-      case _UpiApp.bhim:
-        return 'BHIM UPI';
-    }
   }
 
   Widget _card({required Widget child}) {
@@ -523,11 +567,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.grey.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 3)),
         ],
       ),
       child: child,
@@ -540,22 +580,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
         Container(
           width: 4,
           height: 18,
-          decoration: BoxDecoration(
-            color: _color,
-            borderRadius: BorderRadius.circular(2),
-          ),
+          decoration: BoxDecoration(color: _color, borderRadius: BorderRadius.circular(2)),
         ),
         const SizedBox(width: 10),
         Icon(icon, color: _color, size: 18),
         const SizedBox(width: 6),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: _color,
-          ),
-        ),
+        Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _color)),
       ],
     );
   }
@@ -565,111 +595,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
       children: [
         Icon(icon, size: 16, color: AppColors.grey500),
         const SizedBox(width: 8),
-        Text('$label: ',
-            style: const TextStyle(color: AppColors.grey700, fontSize: 13)),
+        Text('$label: ', style: const TextStyle(color: AppColors.grey700, fontSize: 13)),
         Expanded(
-          child: Text(
-            value,
-            style:
-                const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text(value,
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), overflow: TextOverflow.ellipsis),
         ),
       ],
-    );
-  }
-}
-
-// ── UPI App Logo Widget ────────────────────────────────────────────────────────
-
-class _UpiLogo extends StatelessWidget {
-  final _UpiApp app;
-  const _UpiLogo({required this.app});
-
-  @override
-  Widget build(BuildContext context) {
-    switch (app) {
-      case _UpiApp.gpay:
-        return _logoContainer(
-          color: Colors.white,
-          border: Colors.grey.shade300,
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('G',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4285F4))),
-              Text('P',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF34A853))),
-              Text('a',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFEA4335))),
-              Text('y',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFBBC05))),
-            ],
-          ),
-        );
-      case _UpiApp.phonepe:
-        return _logoContainer(
-          color: const Color(0xFF5F259F),
-          child: const Text(
-            'Pe',
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.white),
-          ),
-        );
-      case _UpiApp.paytm:
-        return _logoContainer(
-          color: const Color(0xFF00BAF2),
-          child: const Text(
-            'Paytm',
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.white),
-          ),
-        );
-      case _UpiApp.bhim:
-        return _logoContainer(
-          color: const Color(0xFF0E519B),
-          child: const Text(
-            'BHIM',
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.white),
-          ),
-        );
-    }
-  }
-
-  Widget _logoContainer({
-    required Color color,
-    required Widget child,
-    Color? border,
-  }) {
-    return Container(
-      width: 46,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
-        border: border != null ? Border.all(color: border) : null,
-      ),
-      alignment: Alignment.center,
-      child: child,
     );
   }
 }

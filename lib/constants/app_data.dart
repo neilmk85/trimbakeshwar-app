@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'app_colors.dart';
+import '../utils/app_images.dart';
 
 class AppData {
   AppData._();
@@ -8,19 +10,21 @@ class AppData {
   static const List<String> navTitles = [
     'Trimbakeshwar',
     'Guruji',
-    'Temple',
     'Pooja',
+    'Rooms',
     'Gallery',
     'Contact',
+    'Mantras',
   ];
 
-  static const List<IconData> navIcons = [
-    Icons.home_rounded,
-    Icons.person_rounded,
-    Icons.temple_hindu_rounded,
-    Icons.auto_awesome_rounded,
-    Icons.photo_library_rounded,
-    Icons.contact_phone_rounded,
+  static const List<FaIconData> navIcons = [
+    FontAwesomeIcons.houseChimney,
+    FontAwesomeIcons.userTie,
+    FontAwesomeIcons.dharmachakra,
+    FontAwesomeIcons.bed,
+    FontAwesomeIcons.images,
+    FontAwesomeIcons.phoneFlip,
+    FontAwesomeIcons.om,
   ];
 
   // ── Pooja List (8 cards) ────────────────────
@@ -28,6 +32,7 @@ class AppData {
     {
       'name': 'Narayan Nagbali',
       'icon': Icons.auto_awesome,
+      'pricePerPerson': 5100,
       'desc':
           'Performed for the liberation of ancestors and removal of ancestral curses.',
       'duration': '3 Days',
@@ -55,10 +60,17 @@ class AppData {
         'Identity proof documents',
         'Booking confirmation receipt',
       ],
+      'muhurtaDates': <String>[
+        '2026-04-28', '2026-05-05', '2026-05-11', '2026-05-18',
+        '2026-05-25', '2026-05-29', '2026-06-01', '2026-06-08',
+        '2026-06-27', '2026-07-06', '2026-07-13', '2026-07-27',
+        '2026-08-03', '2026-08-10', '2026-08-25',
+      ],
     },
     {
       'name': 'Kalsarpa Shanti',
       'icon': Icons.all_inclusive,
+      'pricePerPerson': 3100,
       'desc':
           'Remedy for Kalsarpa Dosha in one\'s horoscope for peace and prosperity.',
       'duration': '1 Day',
@@ -86,10 +98,17 @@ class AppData {
         'Puja samagri as specified by the pandit',
         'Coconut, fruits, and flowers',
       ],
+      'muhurtaDates': <String>[
+        '2026-04-28', '2026-05-05', '2026-05-11', '2026-05-18',
+        '2026-05-25', '2026-05-29', '2026-06-01', '2026-06-08',
+        '2026-06-27', '2026-07-06', '2026-07-13', '2026-07-27',
+        '2026-08-03', '2026-08-10', '2026-08-25',
+      ],
     },
     {
       'name': 'Tripindi Shraddha',
       'icon': Icons.local_fire_department,
+      'pricePerPerson': 2100,
       'desc':
           'Sacred ritual to provide peace to departed souls of three generations.',
       'duration': '1 Day',
@@ -117,10 +136,17 @@ class AppData {
         'Flowers and incense sticks',
         'Puja samagri as advised',
       ],
+      'muhurtaDates': <String>[
+        '2026-04-28', '2026-05-05', '2026-05-11', '2026-05-18',
+        '2026-05-25', '2026-05-29', '2026-06-01', '2026-06-08',
+        '2026-06-27', '2026-07-06', '2026-07-13', '2026-07-27',
+        '2026-08-03', '2026-08-10', '2026-08-25',
+      ],
     },
     {
       'name': 'Rudra Abhishek',
       'icon': Icons.water_drop,
+      'pricePerPerson': 1100,
       'desc':
           'Holy bathing ceremony of Lord Shiva\'s Jyotirlinga with sacred items.',
       'duration': '2-3 Hours',
@@ -148,10 +174,18 @@ class AppData {
         'Bilva (bel) leaves',
         'White and yellow flowers',
       ],
+      'muhurtaDates': <String>[
+        '2026-04-28', '2026-05-04', '2026-05-11', '2026-05-18',
+        '2026-05-25', '2026-05-29', '2026-06-01', '2026-06-08',
+        '2026-06-15', '2026-06-22', '2026-06-27', '2026-07-06',
+        '2026-07-13', '2026-07-20', '2026-07-27', '2026-08-03',
+        '2026-08-10', '2026-08-17', '2026-08-25',
+      ],
     },
     {
       'name': 'Mahamrityunjay Jaap',
       'icon': Icons.self_improvement,
+      'pricePerPerson': 2100,
       'desc':
           'Chanting of the powerful Mahamrityunjay mantra for health and longevity.',
       'duration': '1 Day',
@@ -179,10 +213,17 @@ class AppData {
         'Bhasma (sacred ash)',
         'Puja samagri as specified by the pandit',
       ],
+      'muhurtaDates': <String>[
+        '2026-04-28', '2026-05-05', '2026-05-11', '2026-05-18',
+        '2026-05-25', '2026-05-29', '2026-06-01', '2026-06-08',
+        '2026-06-27', '2026-07-06', '2026-07-13', '2026-07-27',
+        '2026-08-03', '2026-08-10', '2026-08-25',
+      ],
     },
     {
       'name': 'Vastu Shanti',
       'icon': Icons.home_work,
+      'pricePerPerson': 3100,
       'desc':
           'Pooja to remove Vastu doshas and bring positive energy to your home.',
       'duration': '4-5 Hours',
@@ -210,10 +251,17 @@ class AppData {
         'Flowers, fruits, and incense',
         'Puja samagri as specified',
       ],
+      'muhurtaDates': <String>[
+        '2026-05-05', '2026-05-11', '2026-05-18', '2026-05-25',
+        '2026-06-01', '2026-06-08', '2026-06-15', '2026-06-27',
+        '2026-07-06', '2026-07-13', '2026-07-27', '2026-08-03',
+        '2026-08-25',
+      ],
     },
     {
       'name': 'Laghu Rudra Pooja',
       'icon': Icons.temple_hindu,
+      'pricePerPerson': 1500,
       'desc':
           'A shorter version of Rudra Pooja invoking the blessings of Lord Shiva.',
       'duration': '1 Day',
@@ -241,10 +289,18 @@ class AppData {
         'Sandalwood paste and camphor',
         'Puja samagri as specified by the priest',
       ],
+      'muhurtaDates': <String>[
+        '2026-04-28', '2026-05-04', '2026-05-11', '2026-05-18',
+        '2026-05-25', '2026-05-29', '2026-06-01', '2026-06-08',
+        '2026-06-15', '2026-06-22', '2026-06-27', '2026-07-06',
+        '2026-07-13', '2026-07-20', '2026-07-27', '2026-08-03',
+        '2026-08-10', '2026-08-17', '2026-08-25',
+      ],
     },
     {
       'name': 'Navgrah Shanti',
       'icon': Icons.stars,
+      'pricePerPerson': 2500,
       'desc':
           'Pooja to pacify the nine planets and reduce malefic effects in horoscope.',
       'duration': '4-5 Hours',
@@ -272,23 +328,29 @@ class AppData {
         'Coconut, fruits, and sweets',
         'Puja samagri as specified by the pandit',
       ],
+      'muhurtaDates': <String>[
+        '2026-04-28', '2026-05-05', '2026-05-11', '2026-05-18',
+        '2026-05-25', '2026-05-29', '2026-06-01', '2026-06-08',
+        '2026-06-27', '2026-07-06', '2026-07-13', '2026-07-27',
+        '2026-08-03', '2026-08-10', '2026-08-25',
+      ],
     },
   ];
 
   // ── Gallery Items ───────────────────────────
-  static const List<Map<String, dynamic>> galleryItems = [
-    {'name': 'Trimbakeshwar Temple', 'icon': Icons.temple_hindu, 'color': AppColors.poojaBlue},
-    {'name': 'Jyotirlinga Darshan', 'icon': Icons.auto_awesome, 'color': AppColors.poojaDeepPurple},
-    {'name': 'Brahmagiri Mountain', 'icon': Icons.terrain, 'color': AppColors.poojaGreen},
-    {'name': 'Godavari Origin', 'icon': Icons.water, 'color': AppColors.poojaTeal},
-    {'name': 'Kushavarta Teerth', 'icon': Icons.water_drop, 'color': AppColors.webBlue},
-    {'name': 'Temple Architecture', 'icon': Icons.architecture, 'color': Color(0xFF4E342E)},
-    {'name': 'Rudra Abhishek', 'icon': Icons.local_fire_department, 'color': AppColors.poojaRed},
-    {'name': 'Evening Aarti', 'icon': Icons.nightlight_round, 'color': AppColors.poojaOrange},
-    {'name': 'Nandi Mandap', 'icon': Icons.pets, 'color': Color(0xFF37474F)},
-    {'name': 'Temple Entrance', 'icon': Icons.door_front_door, 'color': Color(0xFF5D4037)},
-    {'name': 'Sacred Shivling', 'icon': Icons.circle, 'color': AppColors.navyDeep},
-    {'name': 'Kumbh Mela', 'icon': Icons.groups, 'color': AppColors.poojaDarkTeal},
+  static final List<Map<String, dynamic>> galleryItems = [
+    {'name': 'Trimbakeshwar Temple', 'image': AppImages.trimbakeshwarTemple, 'icon': Icons.temple_hindu, 'color': AppColors.poojaBlue},
+    {'name': 'Brahmagiri Mountain',  'image': AppImages.brahmagiriParvat,    'icon': Icons.terrain, 'color': AppColors.poojaGreen},
+    {'name': 'Kushavarta Kund',      'image': AppImages.kushawartaKunda,     'icon': Icons.water_drop, 'color': AppColors.webBlue},
+    {'name': 'Ganga Dwar',           'image': AppImages.gangaDwar,           'icon': Icons.water, 'color': AppColors.poojaTeal},
+    {'name': 'Kumbha Mela 2027',     'image': AppImages.kumbhaMela,          'icon': Icons.groups, 'color': AppColors.poojaDarkTeal},
+    {'name': 'Rudra Abhishek',       'image': AppImages.rudraAbhishek,       'icon': Icons.local_fire_department, 'color': AppColors.poojaRed},
+    {'name': 'Narayan Nagbali',      'image': AppImages.narayanNagbali,      'icon': Icons.auto_awesome, 'color': AppColors.poojaDeepPurple},
+    {'name': 'Kalsarpa Shanti',      'image': AppImages.kalsarpaShanti,      'icon': Icons.nightlight_round, 'color': AppColors.poojaOrange},
+    {'name': 'Muktidham Temple',     'image': AppImages.muktidhamTemple,     'icon': Icons.temple_hindu, 'color': const Color(0xFF4E342E)},
+    {'name': 'Nivruttinath Temple',  'image': AppImages.nivruttinathTemple,  'icon': Icons.architecture, 'color': const Color(0xFF5D4037)},
+    {'name': 'Pandavleni Caves',     'image': AppImages.pandavleniCaves,     'icon': Icons.landscape, 'color': const Color(0xFF37474F)},
+    {'name': 'Anjaneri Hills',       'image': AppImages.anjaneriHills,       'icon': Icons.terrain, 'color': AppColors.navyDeep},
   ];
 
   // ── Temple Timings ──────────────────────────

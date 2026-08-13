@@ -13,6 +13,10 @@ class PoojaModel {
   final List<String> beforeInstructions;
   final List<String> afterInstructions;
   final List<String> thingsToBring;
+  final int stayRatePerNight;
+  final bool privatePooja;
+  final int privatePoojaRate;
+  final List<DateTime> muhurtaDates;
   final bool enabled;
 
   const PoojaModel({
@@ -28,8 +32,20 @@ class PoojaModel {
     required this.beforeInstructions,
     required this.afterInstructions,
     required this.thingsToBring,
+    this.stayRatePerNight = 0,
+    this.privatePooja = false,
+    this.privatePoojaRate = 0,
+    this.muhurtaDates = const [],
     required this.enabled,
   });
+
+  /// Parses the numeric day count from [duration] (e.g. "2 Days" → 2).
+  /// Returns 1 if the string contains no recognisable number.
+  int get durationDays {
+    final match = RegExp(r'\d+').firstMatch(duration);
+    if (match == null) return 1;
+    return int.tryParse(match.group(0)!) ?? 1;
+  }
 
   Color get color {
     final hex = colorHex.replaceFirst('#', '');
@@ -48,6 +64,40 @@ class PoojaModel {
     'temple_hindu': Icons.temple_hindu,
     'stars': Icons.stars,
   };
+
+  /// Builds a local-only model from an [AppData.poojas] map entry.
+  factory PoojaModel.fromAppData(Map<String, dynamic> data) {
+    final color = data['color'] as Color? ?? const Color(0xFF1565C0);
+    final hex = '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+    final icon = data['icon'] as IconData?;
+    final iconName = icon == null
+        ? 'auto_awesome'
+        : (_iconMap.entries
+                .where((e) => e.value.codePoint == icon.codePoint)
+                .map((e) => e.key)
+                .firstOrNull ??
+            'auto_awesome');
+    return PoojaModel(
+      id: 0,
+      name: data['name'] as String? ?? '',
+      description: data['desc'] as String? ?? '',
+      pricePerPerson: (data['pricePerPerson'] as num?)?.toInt() ?? 0,
+      colorHex: hex,
+      iconName: iconName,
+      duration: data['duration'] as String? ?? '',
+      displayOrder: 0,
+      info: data['info'] as String? ?? '',
+      beforeInstructions: List<String>.from(data['beforeInstructions'] ?? []),
+      afterInstructions: List<String>.from(data['afterInstructions'] ?? []),
+      thingsToBring: List<String>.from(data['thingsToBring'] ?? []),
+      muhurtaDates: (data['muhurtaDates'] as List?)
+              ?.map((e) => DateTime.tryParse(e as String))
+              .whereType<DateTime>()
+              .toList() ??
+          [],
+      enabled: true,
+    );
+  }
 
   factory PoojaModel.fromJson(Map<String, dynamic> json) {
     List<String> parseList(dynamic v) {
@@ -68,6 +118,14 @@ class PoojaModel {
       beforeInstructions: parseList(json['beforeInstructions']),
       afterInstructions: parseList(json['afterInstructions']),
       thingsToBring: parseList(json['thingsToBring']),
+      stayRatePerNight: (json['stayRatePerNight'] as num?)?.toInt() ?? 0,
+      privatePooja: json['privatePooja'] as bool? ?? false,
+      privatePoojaRate: (json['privatePoojaRate'] as num?)?.toInt() ?? 0,
+      muhurtaDates: (json['muhurtaDates'] as List?)
+              ?.map((e) => DateTime.tryParse(e as String))
+              .whereType<DateTime>()
+              .toList() ??
+          [],
       enabled: json['enabled'] as bool? ?? true,
     );
   }

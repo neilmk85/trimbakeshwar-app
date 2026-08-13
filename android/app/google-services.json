@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "651026407454",
+    "project_id": "trimbakeshwarapp",
+    "storage_bucket": "trimbakeshwarapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:651026407454:android:14bc128537d35da635ce0f",
+        "android_client_info": {
+          "package_name": "com.example.trimbakeshwar_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "651026407454-gp15sha7jfp0ig2m5uvatupqnrsp2fbh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.trimbakeshwar_app",
+            "certificate_hash": "512dcf8615da50ad16aea2b5376ba291a1cc0fe8"
+          }
+        },
+        {
+          "client_id": "651026407454-u8bro74v61q7t7j2fid7ve1v1j944qha.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsh9hd7fofB0CZOTzaKRHscpLxRnzS6PQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "651026407454-u8bro74v61q7t7j2fid7ve1v1j944qha.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,9 +1,16 @@
 export 'splash_screen.dart';
+export 'kumbha_mela_screen.dart';
 export 'home_screen.dart';
 export 'trimbakeshwar_screen.dart';
 export 'guruji_screen.dart';
-export 'temple_screen.dart';
 export 'pooja_screen.dart';
 export 'gallery_screen.dart';
 export 'fullscreen_gallery.dart';
 export 'contact_screen.dart';
+export 'rooms_screen.dart';
+export 'nearby_attractions_screen.dart';
+export 'mantra_screen.dart';
+export 'instructions_screen.dart';
+export 'darshan_screen.dart';
+export 'booking_detail_screen.dart';
+export 'jyotirlinga_screen.dart';

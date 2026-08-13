@@ -3,8 +3,9 @@ import '../constants/app_colors.dart';
 
 class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
+  final List<Color>? colors;
 
-  const GradientAppBar({super.key, required this.title});
+  const GradientAppBar({super.key, required this.title, this.colors});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/constants.dart';
+import '../widgets/app_image.dart';
 
 class FullScreenGallery extends StatefulWidget {
   final List<Map<String, dynamic>> items;
@@ -63,40 +64,55 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
             onPageChanged: (index) => setState(() => _currentIndex = index),
             itemBuilder: (context, index) {
               final item = widget.items[index];
-              final color = item['color'] as Color;
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      color.withOpacity(0.6),
-                      color.withOpacity(0.2),
-                      AppColors.black,
-                    ],
-                    radius: 0.8,
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
+              final imagePath = item['image'] as String?;
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (imagePath != null)
+                    InteractiveViewer(
+                      minScale: 1.0,
+                      maxScale: 4.0,
+                      child: AppImage(
+                        src: imagePath,
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  else
+                    Center(
+                      child: Icon(
                         item['icon'] as IconData,
                         size: 120,
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white54,
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        item['name'] as String,
-                        style: const TextStyle(
-                          color: AppColors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1,
+                    ),
+                  // Name overlay at bottom
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.transparent, Colors.black87],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
                         ),
                       ),
-                    ],
+                      child: Text(
+                        item['name'] as String,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               );
             },
           ),

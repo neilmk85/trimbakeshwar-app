@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_l10n.dart';
 import '../services/auth_service.dart';
+import '../utils/app_route.dart';
 import 'register_screen.dart';
+
 
 class LoginScreen extends StatefulWidget {
   /// If provided, called with a builder for the screen to push after login.
@@ -23,12 +27,17 @@ class _LoginScreenState extends State<LoginScreen>
   final _otpCtrl = TextEditingController();
   bool _otpSent = false;
   bool _otpLoading = false;
+  bool _demoMode = false; // true when server is unreachable
 
   // Password tab
   final _pwdPhoneCtrl = TextEditingController();
   final _pwdCtrl = TextEditingController();
   bool _pwdObscure = true;
   bool _pwdLoading = false;
+
+  // SSO
+  bool _ssoLoading = false;
+  bool _appleLoading = false;
 
   @override
   void initState() {
@@ -50,11 +59,16 @@ class _LoginScreenState extends State<LoginScreen>
     if (widget.onLoginSuccess != null) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: widget.onLoginSuccess!),
+        fadeSlideRoute(widget.onLoginSuccess!),
       );
     } else {
       Navigator.pop(context);
     }
+  }
+
+  static bool _isConnectionError(String error) {
+    final e = error.toLowerCase();
+    return e.contains('connect') || e.contains('reach') || e.contains('socket') || e.contains('timed out');
   }
 
   Future<void> _sendOtp() async {
@@ -64,15 +78,19 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
     setState(() => _otpLoading = true);
-    final otp = await AuthService.sendOtp(phone);
-    setState(() {
-      _otpSent = otp != null;
-      _otpLoading = false;
-    });
-    if (otp != null) {
-      _showSnack('OTP sent! (Demo OTP: $otp)', duration: 6);
+    final result = await AuthService.sendOtp(phone);
+    if (!mounted) return;
+
+    if (result.otp != null) {
+      setState(() { _otpSent = true; _demoMode = false; _otpLoading = false; });
+      _showSnack('OTP sent to your WhatsApp number', duration: 6);
+    } else if (_isConnectionError(result.error ?? '')) {
+      // Server unreachable — fall back to demo OTP
+      setState(() { _otpSent = true; _demoMode = true; _otpLoading = false; });
+      _showSnack('Server offline. Use demo OTP: 1234', duration: 8);
     } else {
-      _showSnack('Could not send OTP. Is the server running?');
+      setState(() => _otpLoading = false);
+      _showSnack(result.error ?? 'Could not send OTP.', duration: 6);
     }
   }
 
@@ -83,6 +101,17 @@ class _LoginScreenState extends State<LoginScreen>
       _showSnack('Please enter the 4-digit OTP');
       return;
     }
+
+    if (_demoMode) {
+      if (otp == '1234') {
+        AuthService.loginAsGuest(phone);
+        _handleLoginSuccess();
+      } else {
+        _showSnack('Incorrect OTP. Demo OTP is: 1234');
+      }
+      return;
+    }
+
     setState(() => _otpLoading = true);
     final error = await AuthService.verifyOtpAndLogin(phone, otp);
     setState(() => _otpLoading = false);
@@ -110,6 +139,30 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _ssoLoading = true);
+    final error = await AuthService.signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _ssoLoading = false);
+    if (error == null) {
+      _handleLoginSuccess();
+    } else {
+      _showSnack(error);
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() => _appleLoading = true);
+    final error = await AuthService.signInWithApple();
+    if (!mounted) return;
+    setState(() => _appleLoading = false);
+    if (error == null) {
+      _handleLoginSuccess();
+    } else {
+      _showSnack(error);
+    }
+  }
+
   void _showSnack(String msg, {int duration = 3}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -126,8 +179,8 @@ class _LoginScreenState extends State<LoginScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Login',
+        title: Text(
+          AppL10n.s.loginTitle,
           style: TextStyle(
               color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 0.5),
         ),
@@ -151,9 +204,9 @@ class _LoginScreenState extends State<LoginScreen>
           unselectedLabelColor: Colors.white70,
           labelStyle:
               const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          tabs: const [
-            Tab(text: 'OTP Login'),
-            Tab(text: 'Password'),
+          tabs: [
+            Tab(text: AppL10n.s.otpLogin),
+            Tab(text: AppL10n.s.passwordTab),
           ],
         ),
       ),
@@ -178,8 +231,8 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 24),
           _inputField(
             controller: _otpPhoneCtrl,
-            label: 'Phone Number',
-            hint: '10-digit mobile number',
+            label: AppL10n.s.phoneNumberLabel,
+            hint: AppL10n.s.phonePlaceholder,
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             inputFormatters: [
@@ -191,39 +244,44 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 16),
           if (!_otpSent)
             _primaryButton(
-              label: 'Get OTP',
+              label: AppL10n.s.getOtp,
               loading: _otpLoading,
               onTap: _sendOtp,
             )
           else ...[
-            _inputField(
-              controller: _otpCtrl,
-              label: 'Enter OTP',
-              hint: '4-digit OTP',
-              icon: Icons.lock_outlined,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(4),
-              ],
+            AutofillGroup(
+              child: _inputField(
+                controller: _otpCtrl,
+                label: AppL10n.s.enterOtp,
+                hint: AppL10n.s.otpPlaceholder,
+                icon: Icons.lock_outlined,
+                keyboardType: TextInputType.number,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(4),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => setState(() {
                 _otpSent = false;
+                _demoMode = false;
                 _otpCtrl.clear();
               }),
-              child: const Text('Change Number / Resend OTP'),
+              child: Text(AppL10n.s.changeResendOtp),
             ),
             const SizedBox(height: 8),
             _primaryButton(
-              label: 'Verify & Login',
+              label: AppL10n.s.verifyLogin,
               loading: _otpLoading,
               onTap: () => _verifyOtp(),
             ),
           ],
-          const SizedBox(height: 32),
+          const SizedBox(height: 8),
           _registerLink(),
+          _buildSsoSection(),
         ],
       ),
     );
@@ -240,8 +298,8 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 24),
           _inputField(
             controller: _pwdPhoneCtrl,
-            label: 'Phone Number',
-            hint: '10-digit mobile number',
+            label: AppL10n.s.phoneNumberLabel,
+            hint: AppL10n.s.phonePlaceholder,
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             inputFormatters: [
@@ -252,8 +310,8 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 16),
           _inputField(
             controller: _pwdCtrl,
-            label: 'Password',
-            hint: 'Enter your password',
+            label: AppL10n.s.passwordLabel,
+            hint: AppL10n.s.enterPassword,
             icon: Icons.lock_outlined,
             obscureText: _pwdObscure,
             suffixIcon: IconButton(
@@ -265,12 +323,13 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           const SizedBox(height: 24),
           _primaryButton(
-            label: 'Login',
+            label: AppL10n.s.loginTitle,
             loading: _pwdLoading,
             onTap: _loginWithPassword,
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 8),
           _registerLink(),
+          _buildSsoSection(),
         ],
       ),
     );
@@ -282,7 +341,7 @@ class _LoginScreenState extends State<LoginScreen>
         width: 72,
         height: 72,
         decoration: BoxDecoration(
-          color: AppColors.primaryMedium.withValues(alpha: 0.1),
+          color: AppColors.primary.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: const Icon(Icons.person_outline_rounded,
@@ -298,6 +357,7 @@ class _LoginScreenState extends State<LoginScreen>
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
+    List<String>? autofillHints,
     bool obscureText = false,
     Widget? suffixIcon,
     bool enabled = true,
@@ -306,6 +366,7 @@ class _LoginScreenState extends State<LoginScreen>
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
+      autofillHints: autofillHints,
       obscureText: obscureText,
       enabled: enabled,
       decoration: InputDecoration(
@@ -364,19 +425,96 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  Widget _buildSsoSection() {
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Expanded(child: Divider()),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(AppL10n.s.orDivider,
+                    style: TextStyle(
+                        color: AppColors.grey500,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500)),
+              ),
+              const Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _ssoButton(
+            loading: _ssoLoading,
+            onTap: _signInWithGoogle,
+            icon: const FaIcon(FontAwesomeIcons.google,
+                size: 18, color: Color(0xFFDB4437)),
+            label: AppL10n.s.continueGoogle,
+          ),
+          const SizedBox(height: 10),
+          _ssoButton(
+            loading: _appleLoading,
+            onTap: _signInWithApple,
+            icon: const FaIcon(FontAwesomeIcons.apple,
+                size: 18, color: Color(0xFF000000)),
+            label: 'Continue with Apple',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ssoButton({
+    required bool loading,
+    required VoidCallback onTap,
+    required Widget icon,
+    required String label,
+  }) {
+    return SizedBox(
+      height: 50,
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: loading ? null : onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.black87,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: loading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w500)),
+                ],
+              ),
+      ),
+    );
+  }
+
   Widget _registerLink() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text('New here?',
+        Text(AppL10n.s.newHere,
             style: TextStyle(color: AppColors.grey700, fontSize: 14)),
         TextButton(
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const RegisterScreen()),
+            fadeSlideRoute((_) => const RegisterScreen()),
           ),
-          child: const Text(
-            'Register',
+          child: Text(
+            AppL10n.s.registerLabel,
             style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
