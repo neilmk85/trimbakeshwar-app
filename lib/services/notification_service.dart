@@ -78,17 +78,14 @@ class NotificationService {
       });
     }
 
-    // Subscribe to app_updates topic for broadcast update notifications
-    try {
-      await _fcm.subscribeToTopic('app_updates');
-      debugPrint('[FCM] Subscribed to app_updates topic');
-    } catch (e) {
-      debugPrint('[FCM] Failed to subscribe to app_updates: $e');
-    }
+    // Subscribe to topic and fetch token in background — never block startup
+    _fcm.subscribeToTopic('app_updates')
+        .then((_) => debugPrint('[FCM] Subscribed to app_updates topic'))
+        .catchError((e) => debugPrint('[FCM] Failed to subscribe: $e'));
 
-    // Print token for debugging
-    final token = await _fcm.getToken();
-    debugPrint('FCM Token: $token');
+    _fcm.getToken()
+        .then((token) => debugPrint('FCM Token: $token'))
+        .catchError((_) {});
   }
 
   /// Navigate or show dialog based on notification data.

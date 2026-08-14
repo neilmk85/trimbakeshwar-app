@@ -412,6 +412,27 @@ class ApiService {
     return [];
   }
 
+  static Future<({bool available, int availableCount, String message})>
+      checkRoomAvailability(String roomId, DateTime checkIn, DateTime checkOut) async {
+    String fmt(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    try {
+      final base = _base.replaceFirst('/api', '');
+      final uri = Uri.parse(
+          '$base/api/rooms/$roomId/availability?checkIn=${fmt(checkIn)}&checkOut=${fmt(checkOut)}');
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final data = (body['data'] ?? body) as Map<String, dynamic>;
+      return (
+        available: data['available'] == true,
+        availableCount: (data['availableCount'] as num?)?.toInt() ?? 0,
+        message: data['message'] as String? ?? '',
+      );
+    } catch (_) {
+      return (available: true, availableCount: 0, message: '');
+    }
+  }
+
   // ── JSON helpers ───────────────────────────────────────────────────────────
 
   static Map<String, dynamic> _userToMap(UserModel u) => {

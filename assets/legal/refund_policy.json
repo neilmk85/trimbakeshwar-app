@@ -1,0 +1,32 @@
+{
+  "title": "Refund & Cancellation",
+  "subtitle": "Booking cancellation policy",
+  "version": "1.0",
+  "lastUpdated": "13 August 2026",
+  "sections": [
+    {
+      "heading": "Pooja Cancellations",
+      "body": "• 7 or more days before pooja date: Full refund\n• 3–6 days before pooja date: 50% refund\n• Less than 3 days before pooja date: No refund"
+    },
+    {
+      "heading": "Room Booking Cancellations",
+      "body": "• 48 hours or more before check-in: Full refund\n• Less than 48 hours before check-in: No refund"
+    },
+    {
+      "heading": "Cancellation by Us",
+      "body": "In rare circumstances (natural calamities, temple closures, etc.), if we cancel your booking, a full refund will be issued within 5–7 working days."
+    },
+    {
+      "heading": "Refund Process",
+      "body": "Approved refunds are credited back to the original payment method within 5–7 working days."
+    },
+    {
+      "heading": "How to Cancel",
+      "body": "Open the app, go to My Bookings, and select the booking you wish to cancel. Alternatively, contact us at pooja@trimbakeshwarpoojavidhi.in."
+    },
+    {
+      "heading": "No-Show Policy",
+      "body": "If you do not show up for your booked pooja or room without prior cancellation, no refund will be issued."
+    }
+  ]
+}

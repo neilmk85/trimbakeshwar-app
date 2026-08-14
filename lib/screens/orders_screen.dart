@@ -9,7 +9,9 @@ import 'home_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   final String? highlightOrderId;
-  const OrdersScreen({super.key, this.highlightOrderId});
+  final bool backToPoojas;
+  final String? openDetailForOrderId;
+  const OrdersScreen({super.key, this.highlightOrderId, this.backToPoojas = false, this.openDetailForOrderId});
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -30,11 +32,29 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.dispose();
   }
 
+  bool _detailOpened = false;
+
   Future<void> _refresh() async {
     final phone = AuthService.currentUser?.phone;
     if (phone != null) await OrderService.loadFromServer(phone);
-    // After data loads, scroll to the highlighted order
-    if (widget.highlightOrderId != null) {
+    if (!mounted) return;
+    if (widget.openDetailForOrderId != null && !_detailOpened) {
+      final orders = OrderService.ordersNotifier.value;
+      final order = orders.cast<OrderModel?>().firstWhere(
+            (o) => o?.orderId == widget.openDetailForOrderId,
+            orElse: () => null,
+          );
+      if (order != null) {
+        _detailOpened = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => BookingDetailScreen(order: order)),
+            );
+          }
+        });
+      }
+    } else if (widget.highlightOrderId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToHighlight());
     }
   }
@@ -94,14 +114,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ),
           centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (_) => const HomeScreen(initialIndex: 3),
-              ),
-              (_) => false,
-            ),
-          ),
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => HomeScreen(initialIndex: widget.backToPoojas ? 1 : 3),
+                    ),
+                    (_) => false,
+                  ),
+                ),
           iconTheme: const IconThemeData(color: Colors.white),
           flexibleSpace: Container(
             decoration: const BoxDecoration(

@@ -37,7 +37,7 @@ class AppImages {
   static final String skGuruji        = url('sk_guruji.png');
   static final String skGurujiWhite   = url('sk_guruji_white.png');
   static final String guruji          = url('guruji.jpg');
-  static final String skGurujiCosmic1 = url('sk_guruji_cosmic1.png');
+  static final String skGurujiCosmic1 = 'https://app.trimbakeshwarpoojavidhi.in/static/images/sk_guruji_cosmic1.jpg';
 
   /// Convert an 'assets/images/foo.jpg' path → server URL.
   static String fromAsset(String assetPath) {

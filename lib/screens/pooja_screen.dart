@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_l10n.dart';
@@ -282,10 +283,12 @@ class _PoojaHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/pooja_hero.png',
+          CachedNetworkImage(
+            imageUrl: 'https://app.trimbakeshwarpoojavidhi.in/static/images/pooja_hero.jpg',
             fit: BoxFit.cover,
             alignment: const Alignment(0.3, 0),
+            placeholder: (_, __) => const SizedBox.shrink(),
+            errorWidget: (_, __, ___) => const SizedBox.shrink(),
           ),
           // Gradient overlay — dark at bottom, clear at top
           const DecoratedBox(

@@ -1,0 +1,32 @@
+{
+  "title": "Privacy Policy",
+  "subtitle": "How we collect & use data",
+  "version": "1.0",
+  "lastUpdated": "13 August 2026",
+  "sections": [
+    {
+      "heading": "Information We Collect",
+      "body": "We collect information you provide directly, such as your name, phone number, email address, and booking details. We also collect usage data to improve our services."
+    },
+    {
+      "heading": "How We Use Your Information",
+      "body": "• To process pooja and room bookings\n• To send booking confirmations and reminders via WhatsApp/SMS\n• To contact you regarding your bookings\n• To improve our app and services"
+    },
+    {
+      "heading": "Data Sharing",
+      "body": "We do not sell or rent your personal data to third parties. Your information is shared only with service providers necessary to complete your booking (e.g., payment gateways)."
+    },
+    {
+      "heading": "Data Security",
+      "body": "We implement appropriate technical and organisational measures to protect your personal data against unauthorised access, alteration, disclosure, or destruction."
+    },
+    {
+      "heading": "Your Rights",
+      "body": "You may request access to, correction of, or deletion of your personal data by contacting us at pooja@trimbakeshwarpoojavidhi.in."
+    },
+    {
+      "heading": "Contact Us",
+      "body": "Email: pooja@trimbakeshwarpoojavidhi.in\nWebsite: https://trimbakeshwarpoojavidhi.in"
+    }
+  ]
+}

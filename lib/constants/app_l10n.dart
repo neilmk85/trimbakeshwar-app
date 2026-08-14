@@ -459,14 +459,14 @@ class AppL10n {
   }
 
   // ── Booking screen ─────────────────────────────────────────────────────────
-  String get bookingFormTitle  => _t('Booking Form',          'बुकिंग फॉर्म');
+  String get bookingFormTitle  => _t('Pooja Booking',         'पूजा बुकिंग');
   String get fullName          => _t('Full Name',             'पूरा नाम');
   String get phoneNumber       => _t('Phone Number',          'फोन नंबर');
   String get numberOfPersons   => _t('Number of Persons for Pooja', 'पूजा के लिए व्यक्तियों की संख्या');
   String get dateLabel         => _t('Date',                  'तिथि');
   String get totalAmount       => _t('Total Amount',          'कुल राशि');
   String get proceedToPayment  => _t('Proceed to Payment',    'भुगतान करें');
-  String get stayRequired      => _t('Accommodation Required','आवास आवश्यक है?');
+  String get stayRequired      => _t('Book Room','कमरा बुक करें');
   String get numberOfNights    => _t('Number of Nights',      'रातों की संख्या');
   String get specialRequest    => _t('Special Request',       'विशेष अनुरोध');
 

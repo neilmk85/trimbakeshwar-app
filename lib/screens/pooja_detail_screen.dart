@@ -200,10 +200,13 @@ class _PoojaDetailScreenState extends State<PoojaDetailScreen> {
             ),
             Positioned(
               bottom: 0, left: 0, right: 0,
-              child: _BookButton(
-                color: color,
-                dark: dark,
-                onTap: () => _book(context),
+              child: SafeArea(
+                top: false,
+                child: _BookButton(
+                  color: color,
+                  dark: dark,
+                  onTap: () => _book(context),
+                ),
               ),
             ),
           ],

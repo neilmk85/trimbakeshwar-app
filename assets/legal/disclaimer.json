@@ -1,0 +1,28 @@
+{
+  "title": "Disclaimer",
+  "subtitle": "Important information",
+  "version": "1.0",
+  "lastUpdated": "13 August 2026",
+  "sections": [
+    {
+      "heading": "Religious Services",
+      "body": "We facilitate the booking of poojas and rituals performed by experienced guruji (priests). The spiritual outcomes of religious rituals are beyond our control, and we make no guarantees regarding specific spiritual results."
+    },
+    {
+      "heading": "Accuracy of Information",
+      "body": "While we strive to keep all information accurate and up to date, we do not warrant the completeness or accuracy of any information provided in the app. Temple timings, pooja schedules, and room availability are subject to change without notice."
+    },
+    {
+      "heading": "Third-Party Services",
+      "body": "Our app may integrate with third-party services (payment gateways, maps, etc.). We are not responsible for the content, privacy practices, or availability of these third-party services."
+    },
+    {
+      "heading": "Temple Regulations",
+      "body": "Users are expected to follow all rules, dress codes, and regulations of Trimbakeshwar Jyotirlinga Temple. We are not liable for denial of entry due to non-compliance with temple regulations."
+    },
+    {
+      "heading": "Force Majeure",
+      "body": "We shall not be held liable for any failure or delay in services due to circumstances beyond our control, including but not limited to natural calamities, government orders, or temple closures."
+    }
+  ]
+}

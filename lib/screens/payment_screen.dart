@@ -1,7 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'orders_screen.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../models/booking_form_data.dart';
@@ -149,7 +152,22 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
             'email': user.email.isNotEmpty ? user.email : 'devotee@trimbakeshwar.com',
             'name': user.fullName,
           },
-          'theme': {'color': '#B71C1C'},
+          'theme': {'color': '#0D47A1'},
+          'config': {
+            'display': {
+              'blocks': {
+                'utib': {'name': 'Pay via UPI', 'instruments': [{'method': 'upi'}]},
+                'other': {'name': 'Other Payment Methods', 'instruments': [
+                  {'method': 'card'},
+                  {'method': 'netbanking'},
+                  {'method': 'wallet'},
+                  {'method': 'emi'},
+                ]},
+              },
+              'sequence': ['block.utib', 'block.other'],
+              'preferences': {'show_default_blocks': true},
+            },
+          },
         };
         _razorpayOpened = true;
         _razorpay.open(options);
@@ -168,21 +186,19 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
     required String razorpayOrderId,
     required String signature,
   }) async {
-    setState(() => _processing = true);
-    final verified = await ApiService.verifyAndCreateBookings(
+    // Show toast immediately — verify in background so there's no extra loading screen
+    _updateLocalOrders();
+    if (mounted) _showSuccessDialog();
+    ApiService.verifyAndCreateBookings(
       razorpayOrderId: razorpayOrderId,
       paymentId: paymentId,
       signature: signature,
       bookings: _pendingBookings,
-    );
-    _updateLocalOrders();
-    setState(() => _processing = false);
-    if (!mounted) return;
-    if (verified) {
-      _showSuccessDialog();
-    } else {
-      _showError('Payment received but booking could not be saved. Please contact support with Payment ID: $paymentId');
-    }
+    ).then((verified) {
+      if (!verified) {
+        debugPrint('Payment verified but booking save failed. PaymentID: $paymentId');
+      }
+    });
   }
 
   void _updateLocalOrders() {
@@ -329,52 +345,65 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
   }
 
   void _showSuccessDialog() {
-    final poojaNames = _data.entries.map((e) => e.poojaName).join(', ');
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: const BoxDecoration(color: Color(0xFFE8F5E9), shape: BoxShape.circle),
-              child: const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 42),
-            ),
-            const SizedBox(height: 16),
-            const Text('Booking Confirmed!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-              _data.entries.length == 1
-                  ? 'Your booking has been confirmed for ${_data.entries.first.checkInDate != null ? _formatDate(_data.entries.first.checkInDate!) : _data.entries.first.poojaDate != null ? _formatDate(_data.entries.first.poojaDate!) : '—'}.'
-                  : '$poojaNames have been booked successfully.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.grey700, fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _color,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+    HapticFeedback.heavyImpact();
+
+    final poojaName = _data.entries.length == 1
+        ? _data.entries.first.poojaName
+        : _data.entries.map((e) => e.poojaName).join(', ');
+    final date = _data.entries.first.poojaDate != null
+        ? _formatDate(_data.entries.first.poojaDate!)
+        : _data.entries.first.checkInDate != null
+            ? _formatDate(_data.entries.first.checkInDate!)
+            : '';
+    final total = _formatAmount(_data.grandTotal);
+
+    bool dismissed = false;
+    OverlayEntry? entry;
+
+    void goToOrders() {
+      if (dismissed) return;
+      dismissed = true;
+      entry?.remove();
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => OrdersScreen(openDetailForOrderId: _pendingOrderId, backToPoojas: true)),
+        (_) => false,
+      );
+    }
+
+    entry = OverlayEntry(
+      builder: (_) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) => goToOrders(),
+        child: Material(
+          type: MaterialType.transparency,
+          child: GestureDetector(
+            onTap: goToOrders,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.35),
+              child: Align(
+                alignment: Alignment.center,
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: _PaymentSuccessToast(
+                      poojaName: poojaName,
+                      date: date,
+                      total: total,
+                      onDismiss: goToOrders,
+                      onViewDetails: goToOrders,
+                    ),
+                  ),
                 ),
-                child: const Text('Back to Home', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
+
+    Overlay.of(context).insert(entry);
   }
 
   @override
@@ -483,10 +512,18 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                   ],
                 ),
               )),
-          if (!_data.forMyself && _data.bookedForName != null) ...[
+          ...[
             Divider(color: Colors.grey.shade200, height: 16),
-            _summaryRow(Icons.person_outline, 'Booked For', _data.bookedForName!),
-            if (_data.bookedForPhone != null) ...[
+            _summaryRow(
+              Icons.person_outline,
+              'Booked For',
+              _data.forMyself
+                  ? (AuthService.currentUser?.fullName.isNotEmpty == true
+                      ? AuthService.currentUser!.fullName
+                      : 'Self')
+                  : (_data.bookedForName ?? 'Self'),
+            ),
+            if (!_data.forMyself && _data.bookedForPhone != null) ...[
               const SizedBox(height: 6),
               _summaryRow(Icons.phone_outlined, 'Contact', _data.bookedForPhone!),
             ],
@@ -599,6 +636,235 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
         Expanded(
           child: Text(value,
               style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), overflow: TextOverflow.ellipsis),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentSuccessToast extends StatefulWidget {
+  final String poojaName;
+  final String date;
+  final String total;
+  final VoidCallback onDismiss;
+  final VoidCallback onViewDetails;
+
+  const _PaymentSuccessToast({
+    required this.poojaName,
+    required this.date,
+    required this.total,
+    required this.onDismiss,
+    required this.onViewDetails,
+  });
+
+  @override
+  State<_PaymentSuccessToast> createState() => _PaymentSuccessToastState();
+}
+
+class _PaymentSuccessToastState extends State<_PaymentSuccessToast>
+    with TickerProviderStateMixin {
+  late final AnimationController _slideCtrl;
+  late final AnimationController _bellCtrl;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+  late final Animation<double> _bellAnim;
+  final _audioPlayer = AudioPlayer();
+
+  static const _saffron = Color(0xFFFF8F00);
+  static const _saffronDark = Color(0xFFBF360C);
+
+  @override
+  void initState() {
+    super.initState();
+    _slideCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _bellCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 550));
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 1.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutBack));
+    _fadeAnim = CurvedAnimation(parent: _slideCtrl, curve: Curves.easeIn);
+    _bellAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.28), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.28, end: -0.28), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -0.28, end: 0.18), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 0.18, end: -0.10), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -0.10, end: 0.0), weight: 1),
+    ]).animate(CurvedAnimation(parent: _bellCtrl, curve: Curves.easeInOut));
+
+    _slideCtrl.forward();
+    Future.delayed(const Duration(milliseconds: 400), _ring);
+    Future.delayed(const Duration(milliseconds: 1800), _ring);
+  }
+
+  void _ring() {
+    if (!mounted) return;
+    _bellCtrl
+      ..reset()
+      ..forward();
+    HapticFeedback.mediumImpact();
+    _audioPlayer.play(AssetSource('sounds/temple_bell.wav'));
+  }
+
+  @override
+  void dispose() {
+    _slideCtrl.dispose();
+    _bellCtrl.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slideAnim,
+      child: FadeTransition(
+        opacity: _fadeAnim,
+        child: _buildCard(),
+      ),
+    );
+  }
+
+  Widget _buildCard() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_saffron, _saffronDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _saffronDark.withValues(alpha: 0.55),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned(
+            right: -10,
+            top: -22,
+            child: Text(
+              'ॐ',
+              style: TextStyle(
+                fontSize: 118,
+                color: Colors.white.withValues(alpha: 0.07),
+                fontWeight: FontWeight.w300,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 16, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    AnimatedBuilder(
+                      animation: _bellAnim,
+                      builder: (_, child) => Transform.rotate(
+                        angle: _bellAnim.value,
+                        alignment: Alignment.topCenter,
+                        child: child,
+                      ),
+                      child: const Icon(
+                        Icons.notifications_active_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Booking Confirmed!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: widget.onDismiss,
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: Colors.white.withValues(alpha: 0.75),
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(height: 1, color: Colors.white.withValues(alpha: 0.25)),
+                const SizedBox(height: 10),
+                _row(Icons.auto_awesome_outlined, widget.poojaName),
+                if (widget.date.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  _row(Icons.calendar_today_outlined, widget.date),
+                ],
+                const SizedBox(height: 5),
+                _row(Icons.currency_rupee_outlined, widget.total, bold: true),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    'ॐ नमः शिवाय',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: widget.onViewDetails,
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.18),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text(
+                      'View Booking Details',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(IconData icon, String text, {bool bold = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: Colors.white70, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ),
       ],
     );

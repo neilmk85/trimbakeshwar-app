@@ -7,18 +7,18 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:651026407454:android:14bc128537d35da635ce0f",
+        "mobilesdk_app_id": "1:651026407454:android:4ef98856b535fe0935ce0f",
         "android_client_info": {
-          "package_name": "com.example.trimbakeshwar_app"
+          "package_name": "com.trimbakeshwarpoojavidhi.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "651026407454-gp15sha7jfp0ig2m5uvatupqnrsp2fbh.apps.googleusercontent.com",
+          "client_id": "651026407454-kerr3i8q2uorbl090ceh2u8is1ivqgi4.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.trimbakeshwar_app",
-            "certificate_hash": "512dcf8615da50ad16aea2b5376ba291a1cc0fe8"
+            "package_name": "com.trimbakeshwarpoojavidhi.app",
+            "certificate_hash": "8dafa38b64caaac13fc2e8b2fc937f26e1a86d49"
           }
         },
         {

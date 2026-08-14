@@ -22,10 +22,18 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+def keyProperties = new Properties()
+def keyPropertiesFile = rootProject.file('key.properties')
+if (keyPropertiesFile.exists()) {
+    keyPropertiesFile.withReader('UTF-8') { reader ->
+        keyProperties.load(reader)
+    }
+}
+
 android {
-    namespace "com.example.trimbakeshwar_app"
+    namespace "com.trimbakeshwarpoojavidhi.app"
     compileSdk 36
-    ndkVersion "27.0.12077973"
+    ndkVersion "28.2.13676358"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
@@ -38,16 +46,25 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.trimbakeshwar_app"
+        applicationId "com.trimbakeshwarpoojavidhi.app"
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 34
+        targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
 
+    signingConfigs {
+        release {
+            keyAlias keyProperties['keyAlias']
+            keyPassword keyProperties['keyPassword']
+            storeFile keyProperties['storeFile'] ? file(keyProperties['storeFile']) : null
+            storePassword keyProperties['storePassword']
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
 }

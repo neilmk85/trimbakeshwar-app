@@ -1,0 +1,23 @@
+{
+  "title": "About App",
+  "subtitle": "Trimbakeshwar Pooja Vidhi",
+  "version": "1.0.0",
+  "lastUpdated": "13 August 2026",
+  "appName": "Trimbakeshwar Pooja",
+  "developerName": "Tvaksa",
+  "developerUrl": "www.tvaksa.com",
+  "sections": [
+    {
+      "heading": "What We Offer",
+      "body": "• Online booking for a wide range of poojas and rituals\n• Accommodation (room) booking near the temple\n• Experienced and certified guruji (priests)\n• WhatsApp booking confirmations and reminders\n• Easy rescheduling and cancellation"
+    },
+    {
+      "heading": "Temple Location",
+      "body": "Trimbakeshwar Jyotirlinga Temple\nTrimbakeshwar, Nashik – 422212\nMaharashtra, India"
+    },
+    {
+      "heading": "Contact Us",
+      "body": "Email: pooja@trimbakeshwarpoojavidhi.in\nWebsite: https://trimbakeshwarpoojavidhi.in"
+    }
+  ]
+}

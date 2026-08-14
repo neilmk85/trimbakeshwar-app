@@ -448,17 +448,8 @@ class _LoginScreenState extends State<LoginScreen>
           _ssoButton(
             loading: _ssoLoading,
             onTap: _signInWithGoogle,
-            icon: const FaIcon(FontAwesomeIcons.google,
-                size: 18, color: Color(0xFFDB4437)),
+            icon: const _GoogleIcon(),
             label: AppL10n.s.continueGoogle,
-          ),
-          const SizedBox(height: 10),
-          _ssoButton(
-            loading: _appleLoading,
-            onTap: _signInWithApple,
-            icon: const FaIcon(FontAwesomeIcons.apple,
-                size: 18, color: Color(0xFF000000)),
-            label: 'Continue with Apple',
           ),
         ],
       ),
@@ -524,4 +515,53 @@ class _LoginScreenState extends State<LoginScreen>
       ],
     );
   }
+}
+
+class _GoogleIcon extends StatelessWidget {
+  const _GoogleIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GoogleGPainter()),
+    );
+  }
+}
+
+class _GoogleGPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final center = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2;
+    final strokeW = size.width * 0.175;
+
+    // Arc paints
+    final blue   = Paint()..color = const Color(0xFF4285F4)..style = PaintingStyle.stroke..strokeWidth = strokeW..strokeCap = StrokeCap.butt;
+    final red    = Paint()..color = const Color(0xFFEA4335)..style = PaintingStyle.stroke..strokeWidth = strokeW..strokeCap = StrokeCap.butt;
+    final yellow = Paint()..color = const Color(0xFFFBBC05)..style = PaintingStyle.stroke..strokeWidth = strokeW..strokeCap = StrokeCap.butt;
+    final green  = Paint()..color = const Color(0xFF34A853)..style = PaintingStyle.stroke..strokeWidth = strokeW..strokeCap = StrokeCap.butt;
+
+    final arcRect = Rect.fromCircle(center: center, radius: r - strokeW / 2);
+
+    // Red: top-right → top-left (315° → 225°) = -150° sweep
+    canvas.drawArc(arcRect, -0.524, -2.618, false, red);
+    // Yellow: bottom-left → left (225° → 180°)
+    canvas.drawArc(arcRect, -0.524 - 2.618, -0.785, false, yellow);
+    // Green: bottom-right → bottom-left
+    canvas.drawArc(arcRect, 0, -0.524, false, green);
+    // Blue: right → top-right (0° → -45°) + the horizontal bar
+    canvas.drawArc(arcRect, -0.785, 1.309, false, blue);
+
+    // Blue horizontal bar on right side
+    final barPaint = Paint()..color = const Color(0xFF4285F4)..style = PaintingStyle.fill;
+    final barTop = center.dy - strokeW * 0.5;
+    final barBottom = center.dy + strokeW * 0.5;
+    canvas.drawRect(Rect.fromLTRB(center.dx, barTop, size.width, barBottom), barPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

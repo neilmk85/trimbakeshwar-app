@@ -1,0 +1,40 @@
+{
+  "title": "Terms & Conditions",
+  "subtitle": "Terms governing bookings",
+  "version": "1.0",
+  "lastUpdated": "13 August 2026",
+  "sections": [
+    {
+      "heading": "Acceptance of Terms",
+      "body": "By accessing or using our app, you agree to be bound by these Terms & Conditions and our Privacy Policy."
+    },
+    {
+      "heading": "Booking Services",
+      "body": "• All pooja and room bookings are subject to availability.\n• Bookings are confirmed only upon successful payment.\n• You are responsible for providing accurate personal details at the time of booking."
+    },
+    {
+      "heading": "Payments",
+      "body": "All payments are processed securely. We do not store your payment card details on our servers."
+    },
+    {
+      "heading": "User Conduct",
+      "body": "You agree not to misuse the app, attempt to gain unauthorised access, or engage in any activity that disrupts our services."
+    },
+    {
+      "heading": "Intellectual Property",
+      "body": "All content in this app, including text, images, and logos, is the property of Trimbakeshwar Pooja Vidhi and may not be reproduced without permission."
+    },
+    {
+      "heading": "Limitation of Liability",
+      "body": "We shall not be liable for any indirect, incidental, or consequential damages arising from your use of the app."
+    },
+    {
+      "heading": "Governing Law",
+      "body": "These terms are governed by the laws of India. Any disputes shall be subject to the jurisdiction of courts in Nashik, Maharashtra."
+    },
+    {
+      "heading": "Contact Us",
+      "body": "Email: pooja@trimbakeshwarpoojavidhi.in"
+    }
+  ]
+}

@@ -14,6 +14,9 @@ import '../services/pooja_service.dart';
 import '../services/room_service.dart';
 import 'orders_screen.dart';
 import 'edit_profile_screen.dart';
+import 'payment_screen.dart';
+import '../models/booking_form_data.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 String _shortOrderId(DateTime now) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -43,6 +46,10 @@ class _CartItem {
   int numberOfRooms = 1;
   DateTime? checkInDate;
   DateTime? checkOutDate;
+  bool? stayAvailable;
+  int stayAvailableCount = 0;
+  String stayAvailabilityMessage = '';
+  bool checkingStayAvailability = false;
 
   int get numberOfNights {
     if (checkInDate == null || checkOutDate == null) return 1;
@@ -264,11 +271,19 @@ class _BookingScreenState extends State<BookingScreen> {
           return;
         }
         if (_items[i].checkInDate == null) {
-          _snack('Please select a check-in date for your stay');
+          _snack('Please select check-in & check-out dates for your stay');
           return;
         }
         if (_items[i].checkOutDate == null) {
           _snack('Please select a check-out date for your stay');
+          return;
+        }
+        if (_items[i].stayAvailable == false) {
+          _snack('${_items[i].selectedRoom!.name} is fully booked for the selected dates. Please choose different dates.');
+          return;
+        }
+        if (_items[i].checkingStayAvailability) {
+          _snack('Please wait while we check room availability…');
           return;
         }
       }
@@ -285,73 +300,52 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     }
 
-    setState(() => _processing = true);
-
-    final now = DateTime.now();
-    final baseOrderId = _shortOrderId(now);
-    final orders = <OrderModel>[];
+    // Build BookingFormData and navigate to PaymentScreen
     final fc = _bookingFor == _BookingFor.family ? _familyNameCtrls.length : 1;
-    final familyNames = _bookingFor == _BookingFor.family
-        ? _familyNameCtrls.map((c) => c.text.trim()).toList()
-        : null;
-
-    for (int i = 0; i < _items.length; i++) {
-      final item = _items[i];
-      final orderId = _items.length > 1 ? '${baseOrderId}_${i + 1}' : baseOrderId;
+    final entries = _items.map((item) {
       final color = _poojas.where((p) => p.name == item.poojaName).firstOrNull?.color ?? AppColors.primary;
-      orders.add(OrderModel(
-        orderId: orderId,
+      return BookingEntry(
+        bookingType: 'pooja',
         poojaName: item.poojaName,
-        poojaDate: item.date!,
+        poojaDate: item.date,
+        checkInDate: item.wantsStay ? item.checkInDate : null,
         gotra: _bookingFor == _BookingFor.family
             ? _familyGotraCtrl.text.trim()
             : item.gotraCtrl.text.trim(),
-        numberOfPeople: _bookingFor == _BookingFor.family ? fc : item.numberOfPeople,
-        poojaRatePerPerson: item.poojaAmount(_poojas),
+        poojaAmount: item.poojaAmount(_poojas, familyCount: fc),
         isPrivatePooja: item.isPrivatePooja,
-        totalAmount: item.totalAmount(_poojas, familyCount: fc),
-        checkInDate: item.wantsStay ? item.checkInDate : null,
+        poojaColor: color,
         numberOfRooms: item.wantsStay ? item.numberOfRooms : 0,
         numberOfNights: item.wantsStay ? item.numberOfNights : 0,
+        numberOfGuests: _bookingFor == _BookingFor.family ? fc : item.numberOfPeople,
         stayRatePerRoom: item.wantsStay ? item.stayRate : 0,
         selectedRoomId: item.wantsStay ? item.selectedRoom?.id : null,
         selectedRoomName: item.wantsStay ? item.selectedRoom?.name : null,
-        bookedOn: now,
-        poojaColor: color,
-        bookedForName: _bookingFor == _BookingFor.someoneElse
-            ? _nameCtrl.text.trim()
-            : null,
-        bookedForPhone: _bookingFor == _BookingFor.someoneElse
-            ? _phoneCtrl.text.trim()
-            : null,
-        bookedForEmail: _bookingFor == _BookingFor.someoneElse
-            ? (_emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim())
-            : (_myEmailCtrl.text.trim().isEmpty ? null : _myEmailCtrl.text.trim()),
-        bookedForCity: _bookingFor == _BookingFor.someoneElse
-            ? (_cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim())
-            : null,
-        bookedForZipCode: _bookingFor == _BookingFor.someoneElse
-            ? (_zipCtrl.text.trim().isEmpty ? null : _zipCtrl.text.trim())
-            : null,
-        bookedForCountry: _bookingFor == _BookingFor.someoneElse ? _country : null,
-        familyNames: familyNames,
-      ));
-    }
+      );
+    }).toList();
 
-    // Try to sync to server; if unreachable, still save locally
-    for (final order in orders) {
-      await ApiService.createBooking(order, user.phone);
-    }
-
-    // Always add to local order list so the user can see their bookings
-    OrderService.ordersNotifier.value = [
-      ...orders.reversed,
-      ...OrderService.ordersNotifier.value,
-    ];
+    final formData = BookingFormData(
+      entries: entries,
+      forMyself: _bookingFor != _BookingFor.someoneElse,
+      bookedForName: _bookingFor == _BookingFor.someoneElse ? _nameCtrl.text.trim() : null,
+      bookedForPhone: _bookingFor == _BookingFor.someoneElse ? _phoneCtrl.text.trim() : null,
+      bookedForEmail: _bookingFor == _BookingFor.someoneElse
+          ? (_emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim())
+          : (_myEmailCtrl.text.trim().isEmpty ? null : _myEmailCtrl.text.trim()),
+      bookedForCity: _bookingFor == _BookingFor.someoneElse
+          ? (_cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim())
+          : null,
+      bookedForZipCode: _bookingFor == _BookingFor.someoneElse
+          ? (_zipCtrl.text.trim().isEmpty ? null : _zipCtrl.text.trim())
+          : null,
+      bookedForCountry: _bookingFor == _BookingFor.someoneElse ? _country : 'India',
+    );
 
     if (!mounted) return;
-    setState(() => _processing = false);
-    _showBookingToast(orders.first.orderId);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PaymentScreen(data: formData)),
+    );
   }
 
   void _showBookingToast(String firstOrderId) {
@@ -360,12 +354,17 @@ class _BookingScreenState extends State<BookingScreen> {
     bool dismissed = false;
     OverlayEntry? entry;
 
-    void dismiss() {
+    void goToOrders() {
       if (dismissed) return;
       dismissed = true;
       entry?.remove();
-      // Stay on the current screen — do NOT pop
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => OrdersScreen(openDetailForOrderId: firstOrderId, backToPoojas: true)),
+        (_) => false,
+      );
     }
+
+    void dismiss() => goToOrders();
 
     final fc = _bookingFor == _BookingFor.family ? _familyNameCtrls.length : 0;
     final familyInfo = fc > 0 ? '$fc family members' : '';
@@ -377,11 +376,11 @@ class _BookingScreenState extends State<BookingScreen> {
     entry = OverlayEntry(
       builder: (_) => PopScope(
         canPop: false,
-        onPopInvokedWithResult: (didPop, _) => dismiss(),
+        onPopInvokedWithResult: (didPop, _) => goToOrders(),
         child: Material(
           type: MaterialType.transparency,
           child: GestureDetector(
-            onTap: dismiss,
+            onTap: goToOrders,
             behavior: HitTestBehavior.opaque,
             child: Container(
               color: Colors.black.withValues(alpha: 0.35),
@@ -916,55 +915,60 @@ class _BookingScreenState extends State<BookingScreen> {
           const SizedBox(height: 12),
 
           // Stay toggle
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF8D01E8), Color(0xFF3136D5)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+          GestureDetector(
+            onTap: () {
+              final v = !item.wantsStay;
+              if (v && _rooms.isEmpty) RoomService.load(force: true);
+              setState(() => item.wantsStay = v);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8D01E8), Color(0xFF3136D5)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
               ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.hotel_outlined, color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AppL10n.s.stayRequired,
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
-                      ),
-                      if (RoomService.isLoading.value)
-                        const Text('Loading rooms…',
-                            style: TextStyle(fontSize: 11, color: Colors.white70)),
-                      if (!RoomService.isLoading.value && _rooms.isEmpty)
-                        const Text('No rooms available at the moment',
-                            style: TextStyle(fontSize: 11, color: Colors.white70)),
-                    ],
+              child: Row(
+                children: [
+                  const Icon(Icons.hotel_outlined, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppL10n.s.stayRequired,
+                          style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white),
+                        ),
+                        if (RoomService.isLoading.value)
+                          const Text('Loading rooms…',
+                              style: TextStyle(fontSize: 11, color: Colors.white70)),
+                        if (!RoomService.isLoading.value && _rooms.isEmpty)
+                          const Text('No rooms available at the moment',
+                              style: TextStyle(fontSize: 11, color: Colors.white70)),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Switch.adaptive(
-                  value: item.wantsStay,
-                  activeColor: Colors.white,
-                  activeTrackColor: Colors.white30,
-                  inactiveThumbColor: Colors.white70,
-                  inactiveTrackColor: Colors.white24,
-                  onChanged: (v) {
-                    if (v && _rooms.isEmpty) {
-                      RoomService.load(force: true);
-                    }
-                    setState(() => item.wantsStay = v);
-                  },
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Switch.adaptive(
+                    value: item.wantsStay,
+                    activeColor: Colors.white,
+                    activeTrackColor: Colors.white30,
+                    inactiveThumbColor: Colors.white70,
+                    inactiveTrackColor: Colors.white24,
+                    onChanged: (v) {
+                      if (v && _rooms.isEmpty) RoomService.load(force: true);
+                      setState(() => item.wantsStay = v);
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -1027,24 +1031,8 @@ class _BookingScreenState extends State<BookingScreen> {
                 style: TextStyle(fontSize: 11, color: AppColors.grey500),
               ),
               const SizedBox(height: 8),
-              // Check-in date picker
-              _stayDateTile(
-                icon: Icons.login_rounded,
-                label: 'Check-in Date',
-                value: item.checkInDate,
-                color: color,
-                onTap: () => _pickStayDate(item, isCheckIn: true),
-              ),
-              const SizedBox(height: 6),
-              // Check-out date picker
-              _stayDateTile(
-                icon: Icons.logout_rounded,
-                label: 'Check-out Date',
-                value: item.checkOutDate,
-                color: color,
-                enabled: item.checkInDate != null,
-                onTap: () => _pickStayDate(item, isCheckIn: false),
-              ),
+              // Combined check-in / check-out date picker
+              _stayDateRangeTile(item: item, color: color),
               if (item.checkInDate != null && item.checkOutDate != null) ...[
                 const SizedBox(height: 6),
                 Container(
@@ -1057,25 +1045,39 @@ class _BookingScreenState extends State<BookingScreen> {
                     children: [
                       Icon(Icons.nights_stay_outlined, size: 14, color: color),
                       const SizedBox(width: 6),
-                      Text('${item.numberOfNights} night${item.numberOfNights == 1 ? '' : 's'}',
-                          style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600)),
+                      Text(
+                        '${item.numberOfNights} night${item.numberOfNights == 1 ? '' : 's'}',
+                        style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
               ],
+              const SizedBox(height: 10),
+              // Availability banner
+              if (item.checkInDate != null && item.checkOutDate != null)
+                _stayAvailabilityBanner(item),
               const SizedBox(height: 10),
               _stayCounter(
                 icon: Icons.meeting_room_outlined,
                 label: 'Rooms',
                 value: item.numberOfRooms,
                 min: 1,
-                max: item.selectedRoom!.availableCount,
+                max: item.stayAvailable == true
+                    ? item.stayAvailableCount
+                    : item.selectedRoom!.availableCount,
+                disabled: item.checkInDate == null ||
+                    item.checkOutDate == null ||
+                    item.checkingStayAvailability ||
+                    item.stayAvailable == false,
                 onDecrement: () => setState(() => item.numberOfRooms--),
                 onIncrement: () {
-                  if (item.numberOfRooms >= item.selectedRoom!.availableCount) {
+                  final maxRooms = item.stayAvailable == true
+                      ? item.stayAvailableCount
+                      : item.selectedRoom!.availableCount;
+                  if (item.numberOfRooms >= maxRooms) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(
-                          'Only ${item.selectedRoom!.availableCount} room(s) available'),
+                      content: Text('Only $maxRooms room(s) available for these dates'),
                       backgroundColor: Colors.red.shade700,
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 2),
@@ -1178,38 +1180,139 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Future<void> _pickStayDate(_CartItem item, {required bool isCheckIn}) async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final minDate = isCheckIn ? today : (item.checkInDate?.add(const Duration(days: 1)) ?? today);
-    DateTime picked = isCheckIn
-        ? (item.checkInDate ?? now)
-        : (item.checkOutDate ?? minDate);
-    if (picked.isBefore(minDate)) picked = minDate;
-
-    await showDialog(
-      context: context,
-      builder: (_) => _StayDateDialog(
-        title: isCheckIn ? 'Select Check-in Date' : 'Select Check-out Date',
-        initial: picked,
-        first: minDate,
-        onConfirm: (d) {
-          setState(() {
-            if (isCheckIn) {
-              item.checkInDate = d;
-              // Reset check-out if it's before new check-in
-              if (item.checkOutDate != null &&
-                  !item.checkOutDate!.isAfter(d)) {
-                item.checkOutDate = null;
-              }
-            } else {
-              item.checkOutDate = d;
-            }
-          });
-        },
+  Widget _stayAvailabilityBanner(_CartItem item) {
+    if (item.checkingStayAvailability) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 10),
+            Text('Checking availability…',
+                style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+          ],
+        ),
+      );
+    }
+    if (item.stayAvailabilityMessage.isEmpty) return const SizedBox.shrink();
+    final isAvail = item.stayAvailable == true;
+    final isLimited = isAvail && item.stayAvailableCount == 1;
+    final color = !isAvail ? Colors.red : isLimited ? Colors.orange : Colors.green;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            !isAvail ? Icons.cancel_rounded
+                : isLimited ? Icons.warning_amber_rounded
+                : Icons.check_circle_rounded,
+            color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(item.stayAvailabilityMessage,
+                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+          ),
+        ],
       ),
     );
   }
+
+  Future<void> _pickStayDateRange(_CartItem item) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final result = await showDialog<DateTimeRange>(
+      context: context,
+      builder: (_) => _DateRangePickerDialog(
+        initialStart: item.checkInDate ?? today,
+        initialEnd: item.checkOutDate,
+        first: today,
+        last: DateTime(now.year + 2),
+      ),
+    );
+    if (result == null) return;
+    final checkIn = result.start;
+    final checkOut = result.end.isAfter(result.start)
+        ? result.end
+        : result.start.add(const Duration(days: 1));
+    setState(() {
+      item.checkInDate = checkIn;
+      item.checkOutDate = checkOut;
+      item.stayAvailable = null;
+      item.stayAvailableCount = 0;
+      item.stayAvailabilityMessage = '';
+      item.checkingStayAvailability = item.selectedRoom != null;
+    });
+    if (item.selectedRoom == null) return;
+    await _checkStayAvailability(item, checkIn, checkOut);
+  }
+
+  Future<void> _checkStayAvailability(_CartItem item, DateTime checkIn, DateTime checkOut) async {
+    if (item.selectedRoom == null) return;
+    setState(() => item.checkingStayAvailability = true);
+    final result = await ApiService.checkRoomAvailability(
+        item.selectedRoom!.id.toString(), checkIn, checkOut);
+    if (!mounted) return;
+    setState(() {
+      item.checkingStayAvailability = false;
+      item.stayAvailable = result.available;
+      item.stayAvailableCount = result.availableCount;
+      item.stayAvailabilityMessage = result.message;
+      // Clamp rooms to available
+      if (result.available && result.availableCount > 0 &&
+          item.numberOfRooms > result.availableCount) {
+        item.numberOfRooms = result.availableCount;
+      }
+    });
+  }
+
+  Widget _stayDateRangeTile({required _CartItem item, required Color color}) {
+    final hasRange = item.checkInDate != null && item.checkOutDate != null;
+    return InkWell(
+      onTap: () => _pickStayDateRange(item),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(8),
+          color: color.withValues(alpha: 0.04),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.date_range_rounded, size: 16, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: hasRange
+                  ? Text(
+                      '${_fmtDate(item.checkInDate!)}  →  ${_fmtDate(item.checkOutDate!)}',
+                      style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w500),
+                    )
+                  : Text(
+                      'Select check-in & check-out dates',
+                      style: TextStyle(fontSize: 13, color: AppColors.grey500),
+                    ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: color.withValues(alpha: 0.5)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _fmtDate(DateTime d) => _bsFmtDate(d);
 
   Widget _stayCounter({
     required IconData icon,
@@ -1219,39 +1322,47 @@ class _BookingScreenState extends State<BookingScreen> {
     required int max,
     required VoidCallback onDecrement,
     required VoidCallback onIncrement,
+    bool disabled = false,
   }) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primary, size: 18),
-        const SizedBox(width: 10),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.grey700)),
-        const Spacer(),
-        IconButton(
-          onPressed: value > min ? onDecrement : null,
-          icon: const Icon(Icons.remove_circle_outline),
-          color: value > min ? AppColors.primary : AppColors.grey300,
-          iconSize: 24,
-          visualDensity: VisualDensity.compact,
-        ),
-        SizedBox(
-          width: 36,
-          child: Text('$value',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold)),
-        ),
-        IconButton(
-          onPressed: value < max ? onIncrement : null,
-          icon: const Icon(Icons.add_circle_outline),
-          color: value < max ? AppColors.primary : AppColors.grey300,
-          iconSize: 24,
-          visualDensity: VisualDensity.compact,
-        ),
-      ],
+    final iconColor = disabled ? AppColors.grey300 : AppColors.primary;
+    final textColor = disabled ? AppColors.grey500 : AppColors.grey700;
+    return Opacity(
+      opacity: disabled ? 0.45 : 1.0,
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor, size: 18),
+          const SizedBox(width: 10),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: textColor)),
+          const Spacer(),
+          IconButton(
+            onPressed: disabled || value <= min ? null : onDecrement,
+            icon: const Icon(Icons.remove_circle_outline),
+            color: disabled || value <= min ? AppColors.grey300 : AppColors.primary,
+            iconSize: 24,
+            visualDensity: VisualDensity.compact,
+          ),
+          SizedBox(
+            width: 36,
+            child: Text('$value',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: disabled ? AppColors.grey500 : Colors.black87)),
+          ),
+          IconButton(
+            onPressed: disabled || value >= max ? null : onIncrement,
+            icon: const Icon(Icons.add_circle_outline),
+            color: disabled || value >= max ? AppColors.grey300 : AppColors.primary,
+            iconSize: 24,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1267,10 +1378,17 @@ class _BookingScreenState extends State<BookingScreen> {
     final roomColor = _roomPalette[index % _roomPalette.length];
 
     return GestureDetector(
-      onTap: () => setState(() {
-        item.selectedRoom = room;
-        if (item.numberOfRooms > room.count) item.numberOfRooms = 1;
-      }),
+      onTap: () {
+        setState(() {
+          item.selectedRoom = room;
+          if (item.numberOfRooms > room.count) item.numberOfRooms = 1;
+          item.stayAvailable = null;
+          item.stayAvailabilityMessage = '';
+        });
+        if (item.checkInDate != null && item.checkOutDate != null) {
+          _checkStayAvailability(item, item.checkInDate!, item.checkOutDate!);
+        }
+      },
       child: Container(
         width: 130,
         decoration: BoxDecoration(
@@ -1874,6 +1992,7 @@ class _BookingToastOverlayState extends State<_BookingToastOverlay>
   late final Animation<Offset> _slideAnim;
   late final Animation<double> _fadeAnim;
   late final Animation<double> _bellAnim;
+  final _audioPlayer = AudioPlayer();
 
   static const _saffron = Color(0xFFFF8F00);
   static const _saffronDark = Color(0xFFBF360C);
@@ -1910,14 +2029,15 @@ class _BookingToastOverlayState extends State<_BookingToastOverlay>
     _bellCtrl
       ..reset()
       ..forward();
-    HapticFeedback.lightImpact();
-    SystemSound.play(SystemSoundType.click);
+    HapticFeedback.mediumImpact();
+    _audioPlayer.play(AssetSource('sounds/temple_bell.wav'));
   }
 
   @override
   void dispose() {
     _slideCtrl.dispose();
     _bellCtrl.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -2743,6 +2863,248 @@ class _GlassProfileDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Date range helpers ────────────────────────────────────────────────────────
+
+String _bsFmt2(int n) => n.toString().padLeft(2, '0');
+
+String _bsFmtDate(DateTime d) =>
+    '${_bsFmt2(d.day)} ${_bsMonthName(d.month)} ${d.year}';
+
+String _bsMonthName(int m) => const [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ][m];
+
+// ── Combined check-in / check-out calendar dialog ────────────────────────────
+
+class _DateRangePickerDialog extends StatefulWidget {
+  final DateTime initialStart;
+  final DateTime? initialEnd;
+  final DateTime first;
+  final DateTime last;
+
+  const _DateRangePickerDialog({
+    required this.initialStart,
+    required this.initialEnd,
+    required this.first,
+    required this.last,
+  });
+
+  @override
+  State<_DateRangePickerDialog> createState() => _DateRangePickerDialogState();
+}
+
+class _DateRangePickerDialogState extends State<_DateRangePickerDialog> {
+  late DateTime _start;
+  DateTime? _end;
+  int _step = 0;
+  late DateTime _displayMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _start = widget.initialStart;
+    _end = widget.initialEnd;
+    _displayMonth = DateTime(_start.year, _start.month);
+    _step = (_end == null) ? 0 : 1;
+  }
+
+  bool _isInRange(DateTime d) {
+    if (_end == null) return false;
+    return d.isAfter(_start) && d.isBefore(_end!);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  void _onDayTap(DateTime d) {
+    if (d.isBefore(widget.first)) return;
+    setState(() {
+      if (_step == 0) {
+        _start = d;
+        _end = null;
+        _step = 1;
+      } else {
+        if (!d.isAfter(_start)) {
+          _start = d;
+          _end = null;
+          _step = 1;
+        } else {
+          _end = d;
+          _step = 0;
+        }
+      }
+    });
+  }
+
+  void _prevMonth() => setState(() =>
+      _displayMonth = DateTime(_displayMonth.year, _displayMonth.month - 1));
+  void _nextMonth() => setState(() =>
+      _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + 1));
+
+  static const _weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  static const _months = [
+    '', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final firstDay = DateTime(_displayMonth.year, _displayMonth.month, 1);
+    final daysInMonth = DateTime(_displayMonth.year, _displayMonth.month + 1, 0).day;
+    final startOffset = (firstDay.weekday - 1) % 7;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Select Dates',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1565C0))),
+                      const SizedBox(height: 2),
+                      Text(
+                        _end != null
+                            ? '${_bsFmtDate(_start)} → ${_bsFmtDate(_end!)}'
+                            : _step == 1
+                                ? '${_bsFmtDate(_start)} → Select check-out'
+                                : 'Tap a date to start',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_end != null)
+                  TextButton(
+                    onPressed: () => setState(() { _end = null; _step = 0; }),
+                    child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _stepChip('1. Check-in', _step == 0),
+                const SizedBox(width: 8),
+                _stepChip('2. Check-out', _step == 1),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(onPressed: _prevMonth, icon: const Icon(Icons.chevron_left_rounded)),
+                Text('${_months[_displayMonth.month]} ${_displayMonth.year}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                IconButton(onPressed: _nextMonth, icon: const Icon(Icons.chevron_right_rounded)),
+              ],
+            ),
+            Row(
+              children: _weekdays.map((d) => Expanded(
+                child: Center(child: Text(d,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade500))),
+              )).toList(),
+            ),
+            const SizedBox(height: 4),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7, childAspectRatio: 1),
+              itemCount: startOffset + daysInMonth,
+              itemBuilder: (_, i) {
+                if (i < startOffset) return const SizedBox.shrink();
+                final day = DateTime(_displayMonth.year, _displayMonth.month, i - startOffset + 1);
+                final isPast = day.isBefore(DateTime(today.year, today.month, today.day));
+                final isStart = _isSameDay(day, _start);
+                final isEnd = _end != null && _isSameDay(day, _end!);
+                final inRange = _isInRange(day);
+
+                Color bg = Colors.transparent;
+                Color fg = isPast ? Colors.grey.shade300 : Colors.black87;
+                if (isStart || isEnd) {
+                  bg = const Color(0xFF1565C0);
+                  fg = Colors.white;
+                } else if (inRange) {
+                  bg = const Color(0xFF1565C0).withValues(alpha: 0.12);
+                  fg = const Color(0xFF1565C0);
+                }
+
+                return GestureDetector(
+                  onTap: isPast ? null : () => _onDayTap(day),
+                  child: Container(
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: bg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text('${day.day}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: (isStart || isEnd) ? FontWeight.bold : FontWeight.normal,
+                            color: fg,
+                          )),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _end == null ? null : () {
+                    Navigator.pop(context, DateTimeRange(start: _start, end: _end!));
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade200,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Confirm'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stepChip(String label, bool active) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFF1565C0) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: active ? Colors.white : Colors.grey.shade500)),
     );
   }
 }

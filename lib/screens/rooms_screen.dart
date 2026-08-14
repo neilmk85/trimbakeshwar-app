@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_l10n.dart';
 import '../constants/constants.dart';
@@ -192,10 +193,12 @@ class _HeroBanner extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // Building photo — crop to center (building is portrait, header is landscape)
-          Image.asset(
-            'assets/images/gurukrupa_niwas.jpg',
+          CachedNetworkImage(
+            imageUrl: 'https://app.trimbakeshwarpoojavidhi.in/static/images/gurukrupa_niwas.jpg',
             fit: BoxFit.cover,
             alignment: const Alignment(0, -0.2),
+            placeholder: (_, __) => const SizedBox.shrink(),
+            errorWidget: (_, __, ___) => const SizedBox.shrink(),
           ),
 
           // Dark gradient overlay — stronger at top (status bar) and bottom (text area)

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../models/order_model.dart';
@@ -785,6 +786,42 @@ class _AccountActions extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, indent: 56),
+          const Divider(height: 1, indent: 56),
+          _tile(
+            icon: Icons.privacy_tip_outlined,
+            label: 'Privacy Policy',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const _PolicyScreen(assetPath: 'assets/legal/privacy_policy.json'))),
+          ),
+          const Divider(height: 1, indent: 56),
+          _tile(
+            icon: Icons.description_outlined,
+            label: 'Terms & Conditions',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const _PolicyScreen(assetPath: 'assets/legal/terms_conditions.json'))),
+          ),
+          const Divider(height: 1, indent: 56),
+          _tile(
+            icon: Icons.assignment_return_outlined,
+            label: 'Refund & Cancellation',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const _PolicyScreen(assetPath: 'assets/legal/refund_policy.json'))),
+          ),
+          const Divider(height: 1, indent: 56),
+          _tile(
+            icon: Icons.gavel_outlined,
+            label: 'Disclaimer',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const _PolicyScreen(assetPath: 'assets/legal/disclaimer.json'))),
+          ),
+          const Divider(height: 1, indent: 56),
+          _tile(
+            icon: Icons.info_outline_rounded,
+            label: 'About App',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const _PolicyScreen(assetPath: 'assets/legal/about_app.json'))),
+          ),
+          const Divider(height: 1, indent: 56),
           _tile(
             icon: Icons.logout_rounded,
             label: AppL10n.s.signOut,
@@ -814,6 +851,129 @@ class _AccountActions extends StatelessWidget {
           : null,
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    );
+  }
+}
+
+// ── Legal Document Screen (JSON-driven) ───────────────────────────────────────
+
+class _PolicyScreen extends StatelessWidget {
+  final String assetPath;
+  const _PolicyScreen({required this.assetPath});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: DefaultAssetBundle.of(context).loadString(assetPath),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final doc = jsonDecode(snap.data!) as Map<String, dynamic>;
+        final title = doc['title'] as String;
+        final lastUpdated = doc['lastUpdated'] as String? ?? '';
+        final sections = (doc['sections'] as List).cast<Map<String, dynamic>>();
+        final appName = doc['appName'] as String?;
+        final version = doc['version'] as String?;
+        final developerName = doc['developerName'] as String?;
+        final developerUrl = doc['developerUrl'] as String?;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(title),
+            backgroundColor: const Color(0xFF1565C0),
+            foregroundColor: Colors.white,
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (lastUpdated.isNotEmpty) ...[
+                  Text(
+                    'Last updated: $lastUpdated',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                if (appName != null) ...[
+                  Center(
+                    child: Column(
+                      children: [
+                        Text(appName,
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+                        if (version != null) ...[
+                          const SizedBox(height: 6),
+                          Text('Version $version',
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                        ],
+                        const SizedBox(height: 20),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ],
+                ...sections.map((s) => _Section(
+                      heading: s['heading'] as String,
+                      body: s['body'] as String,
+                    )),
+                if (developerName != null) ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: Column(
+                      children: [
+                        Text('Developed by',
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                        const SizedBox(height: 8),
+                        Text(
+                          developerName,
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1565C0)),
+                        ),
+                        if (developerUrl != null) ...[
+                          const SizedBox(height: 4),
+                          Text(developerUrl,
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  final String heading;
+  final String body;
+  const _Section({required this.heading, required this.body});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(heading,
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1565C0))),
+          const SizedBox(height: 6),
+          Text(body,
+              style: const TextStyle(fontSize: 14, height: 1.7, color: Color(0xFF333333))),
+        ],
+      ),
     );
   }
 }
