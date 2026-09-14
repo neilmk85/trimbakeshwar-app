@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../constants/app_colors.dart';
 import '../models/order_model.dart';
 import '../models/user_model.dart';
@@ -820,6 +821,12 @@ class _AccountActions extends StatelessWidget {
             label: 'About App',
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const _PolicyScreen(assetPath: 'assets/legal/about_app.json'))),
+          ),
+          const Divider(height: 1, indent: 56),
+          _tile(
+            icon: Icons.share_rounded,
+            label: 'Share App',
+            onTap: () => Share.share('Book Trimbakeshwar Poojas & Rooms easily with our app!\n\nhttps://play.google.com/store/apps/details?id=com.trimbakeshwarpoojavidhi.app'),
           ),
           const Divider(height: 1, indent: 56),
           _tile(

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../constants/constants.dart';
@@ -270,10 +271,20 @@ class _ProfileHeader extends StatelessWidget {
                       ],
                     ),
                     child: ClipOval(
-                      child: AppImage(
-                        src: AppImages.skGurujiCosmic1,
-                        fit: BoxFit.cover,
-                        fallbackColor: _cosmicBlue,
+                      child: Container(
+                        width: 110, height: 110,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [_cosmicBlue, _nebulaViolet],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          size: 64,
+                          color: Colors.white54,
+                        ),
                       ),
                     ),
                   ),
@@ -712,7 +723,27 @@ class _ExpertiseCard extends StatelessWidget {
   }
 }
 
-const _msBlue = Color(0xFF0078D4);
+final _poojaImageMap = <String, String>{
+  'Narayan Nagbali':     AppImages.narayanNagbali,
+  'Kalsarpa Shanti':    AppImages.kalsarpaShanti,
+  'Tripindi Shraddha':  AppImages.tripindi,
+  'Rudra Abhishek':     AppImages.rudraAbhishek,
+  'Mahamrityunjay Jaap': AppImages.mahamrityunjayJaap,
+  'Laghu Rudra Pooja':  AppImages.laghuRudra,
+  'Navgrah Shanti':     AppImages.navgrahShanti,
+  'Vastu Shanti':       AppImages.vastuShanti,
+};
+
+const _poojaSymbolMap = <String, String>{
+  'Narayan Nagbali':     '☽',
+  'Kalsarpa Shanti':    '🐍',
+  'Tripindi Shraddha':  '🪔',
+  'Rudra Abhishek':     '𑁍',
+  'Mahamrityunjay Jaap':'ॐ',
+  'Vastu Shanti':       '卐',
+  'Laghu Rudra Pooja':  '𑁍',
+  'Navgrah Shanti':     '✦',
+};
 
 class _PoojaCard extends StatelessWidget {
   final PoojaModel pooja;
@@ -721,130 +752,169 @@ class _PoojaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = pooja.color;
+    final symbol = _poojaSymbolMap[pooja.name] ?? 'ॐ';
+    final imagePath = _poojaImageMap[pooja.name];
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 14,
+              color: color.withValues(alpha: 0.18),
+              blurRadius: 16,
               offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
             ),
           ],
         ),
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Top content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    AppL10n.s.poojaName(pooja.name),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.black87,
-                      height: 1.25,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            children: [
+              // Background
+              Positioned.fill(
+                child: imagePath != null
+                    ? AppImage(src: imagePath, fit: BoxFit.cover, fallbackColor: color)
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [color, color.withValues(alpha: 0.7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
+              ),
+              // Dark scrim
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0x22000000), Color(0x88000000), Color(0xEE000000)],
+                      stops: [0.0, 0.45, 1.0],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  if (pooja.duration.isNotEmpty) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.access_time_rounded,
-                            size: 11, color: Color(0xFFFF8C00)),
-                        const SizedBox(width: 3),
-                        Text(
-                          AppL10n.s.poojaDuration(pooja.duration),
+                ),
+              ),
+              // Symbol watermark
+              Positioned(
+                right: -4, top: -4,
+                child: Text(symbol,
+                    style: TextStyle(
+                        fontSize: 60,
+                        color: Colors.white.withValues(alpha: 0.07),
+                        height: 1)),
+              ),
+              // Content
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Name chip at top
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          AppL10n.s.poojaName(pooja.name),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFFFF8C00),
-                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  if (pooja.pricePerPerson > 0) ...[
-                    Text(
-                      '₹${pooja.pricePerPerson}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black87,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          // Book Now button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-            child: SizedBox(
-              width: double.infinity,
-              height: 30,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8D01E8), Color(0xFF3136D5)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ElevatedButton(
-                  onPressed: onTap,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(AppL10n.s.bookNow),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.arrow_forward_rounded, size: 14),
+                      if (pooja.duration.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        _chip(Icons.schedule_rounded, AppL10n.s.poojaDuration(pooja.duration)),
+                      ],
+                      const Spacer(),
+                      // Book Now + price at bottom
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        width: 1.2),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.bookmark_add_rounded,
+                                          size: 12, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(AppL10n.s.bookNow,
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold)),
+                                      if (pooja.pricePerPerson > 0) ...[
+                                        const SizedBox(width: 4),
+                                        Text('· ₹${pooja.pricePerPerson}',
+                                            style: TextStyle(
+                                                color: Colors.white.withValues(alpha: 0.85),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500)),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _chip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: Colors.white.withValues(alpha: 0.9)),
+          const SizedBox(width: 3),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }

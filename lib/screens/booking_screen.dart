@@ -18,6 +18,11 @@ import 'payment_screen.dart';
 import '../models/booking_form_data.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+const List<String> _kGotras = [
+  'Kashyap', 'Bharadwaj', 'Vashistha', 'Sandilya', 'Gautam',
+  'Atreya', 'Bharadwaja', 'Kaushik', 'Vatsa', 'Garg',
+];
+
 String _shortOrderId(DateTime now) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   final rng = math.Random(now.millisecondsSinceEpoch);
@@ -87,8 +92,9 @@ class _CartItem {
 
 class BookingScreen extends StatefulWidget {
   final String selectedPooja;
+  final DateTime? preselectedDate;
 
-  const BookingScreen({super.key, required this.selectedPooja});
+  const BookingScreen({super.key, required this.selectedPooja, this.preselectedDate});
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -106,6 +112,7 @@ class _BookingScreenState extends State<BookingScreen> {
   final _cityCtrl = TextEditingController();
   final _zipCtrl = TextEditingController();
   String _country = 'India';
+  DateTime? _birthday;
 
   // Family booking
   final _familyGotraCtrl = TextEditingController();
@@ -113,16 +120,35 @@ class _BookingScreenState extends State<BookingScreen> {
     TextEditingController(),
     TextEditingController(),
   ];
+  final List<DateTime?> _familyDobs = [null, null];
 
   @override
   void initState() {
     super.initState();
     _items = [_CartItem(poojaName: widget.selectedPooja)];
+    if (widget.preselectedDate != null) _items[0].date = widget.preselectedDate;
     RoomService.rooms.addListener(_onRoomsChanged);
     RoomService.isLoading.addListener(_onRoomsChanged);
     RoomService.load(force: true);
     final userEmail = AuthService.currentUser?.email ?? '';
     if (userEmail.isNotEmpty) _myEmailCtrl.text = userEmail;
+    _nameCtrl.addListener(() => setState(() {}));
+    _familyNameCtrls[0].addListener(() => setState(() {}));
+  }
+
+  String get _devoteeDisplayName {
+    if (_bookingFor == _BookingFor.myself) {
+      return AuthService.currentUser?.fullName ?? '';
+    }
+    if (_bookingFor == _BookingFor.someoneElse) {
+      return _nameCtrl.text.trim();
+    }
+    if (_bookingFor == _BookingFor.family) {
+      final parts = _familyNameCtrls[0].text.trim().split(' ');
+      final lastName = parts.length > 1 ? parts.last : '';
+      return lastName.isNotEmpty ? '$lastName Family' : '';
+    }
+    return '';
   }
 
   void _onRoomsChanged() {
@@ -205,7 +231,10 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _addPooja() {
-    setState(() => _items.add(_CartItem(poojaName: _poojas.first.name)));
+    final taken = _items.map((e) => e.poojaName).toSet();
+    final available = _poojas.where((p) => !taken.contains(p.name)).toList();
+    if (available.isEmpty) return;
+    setState(() => _items.add(_CartItem(poojaName: available.first.name)));
   }
 
   void _removePooja(int index) {
@@ -332,13 +361,9 @@ class _BookingScreenState extends State<BookingScreen> {
       bookedForEmail: _bookingFor == _BookingFor.someoneElse
           ? (_emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim())
           : (_myEmailCtrl.text.trim().isEmpty ? null : _myEmailCtrl.text.trim()),
-      bookedForCity: _bookingFor == _BookingFor.someoneElse
-          ? (_cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim())
-          : null,
-      bookedForZipCode: _bookingFor == _BookingFor.someoneElse
-          ? (_zipCtrl.text.trim().isEmpty ? null : _zipCtrl.text.trim())
-          : null,
-      bookedForCountry: _bookingFor == _BookingFor.someoneElse ? _country : 'India',
+      bookedForCity: _cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim(),
+      bookedForZipCode: _zipCtrl.text.trim().isEmpty ? null : _zipCtrl.text.trim(),
+      bookedForCountry: _country,
     );
 
     if (!mounted) return;
@@ -435,17 +460,9 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          AppL10n.s.bookingFormTitle,
-          style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5),
-        ),
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: AppColors.appBarGradient,
@@ -453,9 +470,65 @@ class _BookingScreenState extends State<BookingScreen> {
               end: Alignment.bottomRight,
             ),
           ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          AppL10n.s.bookingFormTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        Text(
+                          _items.map((e) => e.poojaName).join(', '),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_grandTotal > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        _formatAmount(_grandTotal),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                ],
+              ),
+            ),
+          ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
       ),
       body: Stack(
         children: [
@@ -466,6 +539,8 @@ class _BookingScreenState extends State<BookingScreen> {
               children: [
                 _buildBookingForCard(),
                 const SizedBox(height: 14),
+                _buildLocationCard(),
+                const SizedBox(height: 14),
                 ...List.generate(
                   _items.length,
                   (i) => Column(children: [
@@ -473,19 +548,6 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(height: 14),
                   ]),
                 ),
-                if (_poojas.length > 1)
-                  OutlinedButton.icon(
-                    onPressed: _addPooja,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Another Pooja'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
                 const SizedBox(height: 14),
                 _buildCostSummary(),
               ],
@@ -531,13 +593,41 @@ class _BookingScreenState extends State<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader(Icons.person_outline, 'Booking For'),
+          Row(
+            children: [
+              const Icon(Icons.person_outline, color: AppColors.primary, size: 18),
+              const SizedBox(width: 6),
+              const Text('Booking For',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary)),
+              if (_devoteeDisplayName.isNotEmpty) ...[
+                const Text(' - ',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87)),
+                Flexible(
+                  child: Text(
+                    _devoteeDisplayName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+          ),
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _forToggle('Myself', _BookingFor.myself)),
+              Expanded(child: _forToggle('Me', _BookingFor.myself)),
               const SizedBox(width: 8),
-              Expanded(child: _forToggle('Someone Else', _BookingFor.someoneElse)),
+              Expanded(child: _forToggle('Others', _BookingFor.someoneElse)),
               const SizedBox(width: 8),
               Expanded(child: _forToggle('For Family', _BookingFor.family)),
             ],
@@ -548,6 +638,10 @@ class _BookingScreenState extends State<BookingScreen> {
               hint: 'Your Email (for booking confirmation)',
               icon: Icons.email_outlined,
               type: TextInputType.emailAddress),
+          if (_bookingFor == _BookingFor.myself) ...[
+            const SizedBox(height: 10),
+            _birthdayTile(),
+          ],
           // ── Someone Else fields ──
           if (_bookingFor == _BookingFor.someoneElse) ...[
             const SizedBox(height: 16),
@@ -570,39 +664,15 @@ class _BookingScreenState extends State<BookingScreen> {
                 icon: Icons.email_outlined,
                 type: TextInputType.emailAddress),
             const SizedBox(height: 10),
-            _textField(
-                controller: _cityCtrl,
-                hint: 'City (optional)',
-                icon: Icons.location_city_outlined,
-                caps: TextCapitalization.words),
-            const SizedBox(height: 10),
-            _textField(
-                controller: _zipCtrl,
-                hint: 'ZIP / PIN Code (optional)',
-                icon: Icons.pin_drop_outlined,
-                type: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _country,
-              isExpanded: true,
-              decoration: _inputDecoration('Country', Icons.flag_outlined),
-              items: AppCountries.all
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _country = v);
-              },
-            ),
+            _birthdayTile(),
           ],
           // ── Family fields ──
           if (_bookingFor == _BookingFor.family) ...[
             const SizedBox(height: 14),
-            _textField(
-                controller: _familyGotraCtrl,
-                hint: 'Family Gotra — Optional (same for all members)',
-                icon: Icons.family_restroom_outlined,
-                caps: TextCapitalization.words),
+            _GotraField(
+              controller: _familyGotraCtrl,
+              hint: 'Family Gotra — Optional (same for all members)',
+            ),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -629,22 +699,25 @@ class _BookingScreenState extends State<BookingScreen> {
             ...List.generate(_familyNameCtrls.length, (i) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: _textField(
-                          controller: _familyNameCtrls[i],
-                          hint: 'Member ${i + 1} Full Name',
-                          icon: Icons.person_outline,
-                          caps: TextCapitalization.words),
-                    ),
-                    if (_familyNameCtrls.length > 2) ...[
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => setState(() {
-                          _familyNameCtrls[i].dispose();
-                          _familyNameCtrls.removeAt(i);
-                        }),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _textField(
+                              controller: _familyNameCtrls[i],
+                              hint: 'Member ${i + 1} Full Name',
+                              icon: Icons.person_outline,
+                              caps: TextCapitalization.words),
+                        ),
+                        if (_familyNameCtrls.length > 2) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _familyNameCtrls[i].dispose();
+                              _familyNameCtrls.removeAt(i);
+                              if (i < _familyDobs.length) _familyDobs.removeAt(i);
+                            }),
                         child: Container(
                           width: 34,
                           height: 34,
@@ -660,11 +733,17 @@ class _BookingScreenState extends State<BookingScreen> {
                     ],
                   ],
                 ),
+                const SizedBox(height: 6),
+                _memberDobTile(i),
+              ],
+            ),
               );
             }),
             TextButton.icon(
-              onPressed: () => setState(
-                  () => _familyNameCtrls.add(TextEditingController())),
+              onPressed: () => setState(() {
+                _familyNameCtrls.add(TextEditingController());
+                _familyDobs.add(null);
+              }),
               icon: const Icon(Icons.person_add_outlined, size: 16),
               label: const Text('Add Member'),
               style: TextButton.styleFrom(
@@ -679,6 +758,33 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  Widget _personToggle(int n, _CartItem item) {
+    final selected = item.numberOfPeople == n;
+    return GestureDetector(
+      onTap: () => setState(() => item.numberOfPeople = n),
+      child: Container(
+        width: 44,
+        height: 32,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.grey.shade300,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          '$n',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.grey700,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _forToggle(String label, _BookingFor value) {
     return _ForToggleButton(
       label: label,
@@ -689,11 +795,39 @@ class _BookingScreenState extends State<BookingScreen> {
 
   // ── Section: Pooja Card ───────────────────────────────────────────────────────
 
+  Widget _buildLocationCard() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardHeader(Icons.location_on_outlined, 'Location'),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _CityField(controller: _cityCtrl),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: _CountryChip(
+                  value: _country,
+                  onChanged: (v) => setState(() => _country = v),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPoojaCard(int index) {
     final item = _items[index];
     final pooja =
         _poojas.where((p) => p.name == item.poojaName).firstOrNull;
-    final color = pooja?.color ?? AppColors.primary;
+    const color = AppColors.primary;
     final maxNights = pooja?.durationDays ?? 1;
 
     return _card(
@@ -721,71 +855,79 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Pooja dropdown
-          DropdownButtonFormField<String>(
-            value: item.poojaName,
-            isExpanded: true,
-            decoration:
-                _inputDecoration('Select Pooja', Icons.auto_awesome_outlined),
-            items: _poojas
-                .map((p) => DropdownMenuItem<String>(
-                      value: p.name,
-                      child: Text(p.name),
-                    ))
-                .toList(),
-            onChanged: (v) {
-              if (v != null) setState(() {
-                item.poojaName = v;
-              });
-            },
+          // Pooja dropdown + Date in same row
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _PoojaSelector(
+                  selected: item.poojaName,
+                  options: _poojas
+                      .where((p) {
+                        final takenByOthers = _items
+                            .asMap()
+                            .entries
+                            .where((e) => e.key != index)
+                            .map((e) => e.value.poojaName)
+                            .toSet();
+                        return !takenByOthers.contains(p.name);
+                      })
+                      .map((p) => p.name)
+                      .toList()
+                      .cast<String>(),
+                  color: color,
+                  onChanged: (v) => setState(() => item.poojaName = v),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: GestureDetector(
+                  onTap: () => _pickDate(index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today_outlined,
+                            color: AppColors.primary, size: 18),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            item.date == null
+                                ? AppL10n.s.dateLabel
+                                : _formatDate(item.date!),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: item.date == null
+                                  ? Colors.grey.shade500
+                                  : Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(Icons.arrow_drop_down, color: AppColors.grey500, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
 
           // Gotra — hidden for family (shared gotra entered above)
           if (_bookingFor != _BookingFor.family) ...[
-            TextFormField(
+            _GotraField(
               controller: item.gotraCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: _inputDecoration(
-                  'Enter Gotra (Optional)', Icons.family_restroom_outlined),
+              hint: 'Enter Gotra (Optional)',
             ),
             const SizedBox(height: 12),
           ],
-
-          // Date picker
-          GestureDetector(
-            onTap: () => _pickDate(index),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today_outlined,
-                      color: AppColors.primary, size: 20),
-                  const SizedBox(width: 12),
-                  Text(
-                    item.date == null
-                        ? AppL10n.s.dateLabel
-                        : _formatDate(item.date!),
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: item.date == null
-                          ? Colors.grey.shade500
-                          : Colors.black87,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.arrow_drop_down, color: AppColors.grey500),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
 
           // Number of people
           if (_bookingFor == _BookingFor.family) ...[
@@ -818,29 +960,31 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
             const SizedBox(height: 12),
           ] else ...[
-            _stayCounter(
-              icon: Icons.people_outline,
-              label: AppL10n.s.numberOfPersons,
-              value: item.numberOfPeople,
-              min: 1,
-              max: 20,
-              onDecrement: () => setState(() => item.numberOfPeople--),
-              onIncrement: () => setState(() => item.numberOfPeople++),
+            Row(
+              children: [
+                Icon(Icons.people_outline, color: AppColors.primary, size: 18),
+                const SizedBox(width: 10),
+                Text(AppL10n.s.numberOfPersons,
+                    style: const TextStyle(fontSize: 13, color: AppColors.grey700)),
+                const Spacer(),
+                _personToggle(1, item),
+                const SizedBox(width: 8),
+                _personToggle(2, item),
+              ],
             ),
             const SizedBox(height: 12),
           ],
 
-          // Private pooja toggle — always visible
-          _PrivatePoojaCard(
-            color: color,
-            rate: pooja?.privatePoojaRate ?? 0,
-            isSelected: item.isPrivatePooja,
-            formatAmount: _formatAmount,
-            enabled: pooja?.privatePooja == true,
-            onChanged: pooja?.privatePooja == true
-                ? (v) => setState(() => item.isPrivatePooja = v)
-                : null,
-          ),
+          // Private pooja toggle — only shown when admin has enabled it
+          if (pooja?.privatePooja == true)
+            _PrivatePoojaCard(
+              color: color,
+              rate: pooja?.privatePoojaRate ?? 0,
+              isSelected: item.isPrivatePooja,
+              formatAmount: _formatAmount,
+              enabled: true,
+              onChanged: (v) => setState(() => item.isPrivatePooja = v),
+            ),
           const SizedBox(height: 10),
 
           // Pooja rate row
@@ -853,20 +997,6 @@ class _BookingScreenState extends State<BookingScreen> {
             child: _bookingFor == _BookingFor.family
                 ? Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Rate per Person',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: color,
-                                  fontWeight: FontWeight.w500)),
-                          Text(_formatAmount(item.poojaAmount(_poojas)),
-                              style:
-                                  TextStyle(fontSize: 13, color: color)),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -908,6 +1038,25 @@ class _BookingScreenState extends State<BookingScreen> {
                     ],
                   ),
           ),
+
+          // Add another pooja — only on the last card
+          if (index == _items.length - 1 &&
+              _items.length < _poojas.length) ...[
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: _addPooja,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Another Pooja'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                minimumSize: const Size(double.infinity, 0),
+              ),
+            ),
+          ],
 
           // ── Stay section ────────────────────────────────────────────────
           const SizedBox(height: 14),
@@ -1233,11 +1382,21 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _pickStayDateRange(_CartItem item) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+
+    // Default check-in to one day before pooja date if not already set
+    DateTime defaultStart = today;
+    if (item.checkInDate == null && item.date != null) {
+      final dayBefore = item.date!.subtract(const Duration(days: 1));
+      defaultStart = dayBefore.isBefore(today) ? today : dayBefore;
+    } else {
+      defaultStart = item.checkInDate ?? today;
+    }
+
     final result = await showDialog<DateTimeRange>(
       context: context,
       builder: (_) => _DateRangePickerDialog(
-        initialStart: item.checkInDate ?? today,
-        initialEnd: item.checkOutDate,
+        initialStart: defaultStart,
+        initialEnd: item.checkOutDate ?? (item.date ?? defaultStart.add(const Duration(days: 1))),
         first: today,
         last: DateTime(now.year + 2),
       ),
@@ -1255,6 +1414,19 @@ class _BookingScreenState extends State<BookingScreen> {
       item.stayAvailabilityMessage = '';
       item.checkingStayAvailability = item.selectedRoom != null;
     });
+
+    // Warn if stay dates are far from pooja date
+    if (item.date != null) {
+      final poojaDay = DateTime(item.date!.year, item.date!.month, item.date!.day);
+      final stayStart = DateTime(checkIn.year, checkIn.month, checkIn.day);
+      final stayEnd = DateTime(checkOut.year, checkOut.month, checkOut.day);
+      final isNear = !(stayEnd.isBefore(poojaDay.subtract(const Duration(days: 3))) ||
+          stayStart.isAfter(poojaDay.add(const Duration(days: 3))));
+      if (!isNear) {
+        _snack('Your stay dates are far from your Pooja date. Please confirm your dates.');
+      }
+    }
+
     if (item.selectedRoom == null) return;
     await _checkStayAvailability(item, checkIn, checkOut);
   }
@@ -1655,7 +1827,6 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _card({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -1667,21 +1838,24 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         ],
       ),
-      child: child,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: child,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _cardHeader(IconData icon, String title) {
     return Row(
       children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(2)),
-        ),
-        const SizedBox(width: 10),
         Icon(icon, color: AppColors.primary, size: 18),
         const SizedBox(width: 6),
         Text(title,
@@ -1714,6 +1888,100 @@ class _BookingScreenState extends State<BookingScreen> {
       ),
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  Widget _memberDobTile(int index) {
+    while (_familyDobs.length <= index) _familyDobs.add(null);
+    final dob = _familyDobs[index];
+    final formatted = dob == null
+        ? null
+        : '${dob.day.toString().padLeft(2, '0')} / ${dob.month.toString().padLeft(2, '0')} / ${dob.year}';
+    return GestureDetector(
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: dob ?? DateTime(now.year - 30),
+          firstDate: DateTime(1900),
+          lastDate: now,
+          helpText: 'Member ${index + 1} Date of Birth',
+        );
+        if (picked != null) setState(() => _familyDobs[index] = picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.cake_outlined, size: 20, color: Colors.grey.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                formatted ?? 'Date of Birth (Optional)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: formatted != null ? Colors.black87 : Colors.grey.shade500,
+                ),
+              ),
+            ),
+            if (dob != null)
+              GestureDetector(
+                onTap: () => setState(() => _familyDobs[index] = null),
+                child: Icon(Icons.clear, size: 18, color: Colors.grey.shade400),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _birthdayTile() {
+    final formatted = _birthday == null
+        ? null
+        : '${_birthday!.day.toString().padLeft(2, '0')} / ${_birthday!.month.toString().padLeft(2, '0')} / ${_birthday!.year}';
+    return GestureDetector(
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _birthday ?? DateTime(now.year - 30),
+          firstDate: DateTime(1900),
+          lastDate: now,
+          helpText: 'Select Date of Birth',
+        );
+        if (picked != null) setState(() => _birthday = picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.cake_outlined, size: 20, color: Colors.grey.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                formatted ?? 'Date of Birth (Optional)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: formatted != null ? Colors.black87 : Colors.grey.shade500,
+                ),
+              ),
+            ),
+            if (_birthday != null)
+              GestureDetector(
+                onTap: () => setState(() => _birthday = null),
+                child: Icon(Icons.clear, size: 18, color: Colors.grey.shade400),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -3106,5 +3374,551 @@ class _DateRangePickerDialogState extends State<_DateRangePickerDialog> {
               fontWeight: FontWeight.w600,
               color: active ? Colors.white : Colors.grey.shade500)),
     );
+  }
+}
+
+// ── Pooja Selector (M3 style) ─────────────────────────────────────────────────
+
+class _PoojaSelector extends StatelessWidget {
+  const _PoojaSelector({
+    required this.selected,
+    required this.options,
+    required this.color,
+    required this.onChanged,
+  });
+
+  final String selected;
+  final List<String> options;
+  final Color color;
+  final ValueChanged<String> onChanged;
+
+  void _open(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _PoojaPickerSheet(
+        selected: selected,
+        options: options,
+        color: color,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _open(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withValues(alpha: 0.08), color.withValues(alpha: 0.02)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: color.withValues(alpha: 0.35), width: 1.2),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selected,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  letterSpacing: 0.1,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down_rounded, color: color, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PoojaPickerSheet extends StatelessWidget {
+  const _PoojaPickerSheet({
+    required this.selected,
+    required this.options,
+    required this.color,
+    required this.onChanged,
+  });
+
+  final String selected;
+  final List<String> options;
+  final Color color;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: color, size: 20),
+                const SizedBox(width: 8),
+                Text('Select Pooja',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: options.length,
+            separatorBuilder: (_, __) => Divider(
+              height: 1,
+              indent: 56,
+              color: Colors.grey.shade100,
+            ),
+            itemBuilder: (_, i) {
+              final opt = options[i];
+              final isSelected = opt == selected;
+              return InkWell(
+                onTap: () {
+                  onChanged(opt);
+                  Navigator.pop(context);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36, height: 36,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? color.withValues(alpha: 0.12)
+                              : Colors.grey.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isSelected
+                              ? Icons.check_circle_rounded
+                              : Icons.circle_outlined,
+                          color: isSelected ? color : Colors.grey.shade400,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          opt,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            color: isSelected ? color : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
+        ],
+      ),
+    );
+  }
+}
+
+// ── City autocomplete ─────────────────────────────────────────────────────────
+
+class _CityField extends StatefulWidget {
+  const _CityField({required this.controller});
+  final TextEditingController controller;
+  @override
+  State<_CityField> createState() => _CityFieldState();
+}
+
+class _CityFieldState extends State<_CityField> {
+  TextEditingController? _inner;
+  void _sync() { if (_inner != null) widget.controller.text = _inner!.text; }
+
+  @override
+  Widget build(BuildContext context) {
+    return Autocomplete<String>(
+      optionsBuilder: (v) {
+        if (v.text.isEmpty) return const [];
+        final q = v.text.toLowerCase();
+        return AppCountries.indianCities.where((c) => c.toLowerCase().contains(q));
+      },
+      fieldViewBuilder: (ctx, ctrl, focus, submit) {
+        if (_inner != ctrl) {
+          _inner?.removeListener(_sync);
+          _inner = ctrl..addListener(_sync);
+          if (widget.controller.text.isNotEmpty) ctrl.text = widget.controller.text;
+        }
+        return TextField(
+          controller: ctrl,
+          focusNode: focus,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            hintText: 'City (optional)',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+          onSubmitted: (_) => submit(),
+        );
+      },
+      onSelected: (v) => widget.controller.text = v,
+      optionsViewBuilder: (ctx, onSel, opts) => _autocompleteOptions(opts, onSel),
+    );
+  }
+
+  @override
+  void dispose() { _inner?.removeListener(_sync); super.dispose(); }
+}
+
+// ── Country autocomplete ──────────────────────────────────────────────────────
+
+class _CountryChip extends StatelessWidget {
+  const _CountryChip({required this.value, required this.onChanged});
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  void _open(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CountryPickerSheet(selected: value, onChanged: onChanged),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _open(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down_rounded,
+                color: AppColors.grey500, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CountryPickerSheet extends StatefulWidget {
+  const _CountryPickerSheet({required this.selected, required this.onChanged});
+  final String selected;
+  final ValueChanged<String> onChanged;
+  @override
+  State<_CountryPickerSheet> createState() => _CountryPickerSheetState();
+}
+
+class _CountryPickerSheetState extends State<_CountryPickerSheet> {
+  final _search = TextEditingController();
+  List<String> _filtered = AppCountries.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() {
+      final q = _search.text.toLowerCase();
+      setState(() {
+        _filtered = q.isEmpty
+            ? AppCountries.all
+            : AppCountries.all.where((c) => c.toLowerCase().contains(q)).toList();
+      });
+    });
+  }
+
+  @override
+  void dispose() { _search.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(bottom: bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _search,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Search country…',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _search.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => _search.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.45,
+            ),
+            child: _filtered.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('No results', style: TextStyle(color: Colors.grey)),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    itemCount: _filtered.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      indent: 50,
+                      color: Colors.grey.shade100,
+                    ),
+                    itemBuilder: (_, i) {
+                      final country = _filtered[i];
+                      final isSelected = country == widget.selected;
+                      return InkWell(
+                        onTap: () {
+                          widget.onChanged(country);
+                          Navigator.pop(context);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 13),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected
+                                    ? Icons.check_circle_rounded
+                                    : Icons.circle_outlined,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : Colors.grey.shade300,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  country,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _autocompleteOptions(
+    Iterable<String> options, AutocompleteOnSelected<String> onSelected) {
+  return Align(
+    alignment: Alignment.topLeft,
+    child: Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(8),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 220),
+        child: ListView.builder(
+          padding: EdgeInsets.zero,
+          shrinkWrap: true,
+          itemCount: options.length,
+          itemBuilder: (_, i) {
+            final opt = options.elementAt(i);
+            return InkWell(
+              onTap: () => onSelected(opt),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text(opt, style: const TextStyle(fontSize: 14)),
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+class _GotraField extends StatefulWidget {
+  const _GotraField({required this.controller, required this.hint});
+  final TextEditingController controller;
+  final String hint;
+
+  @override
+  State<_GotraField> createState() => _GotraFieldState();
+}
+
+class _GotraFieldState extends State<_GotraField> {
+  TextEditingController? _innerCtrl;
+
+  void _onInnerChanged() {
+    if (_innerCtrl != null) widget.controller.text = _innerCtrl!.text;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Autocomplete<String>(
+      optionsBuilder: (TextEditingValue v) {
+        if (v.text.isEmpty) return const [];
+        final q = v.text.toLowerCase();
+        return _kGotras.where((g) => g.toLowerCase().contains(q));
+      },
+      fieldViewBuilder: (context, textController, focusNode, onSubmitted) {
+        if (_innerCtrl != textController) {
+          _innerCtrl?.removeListener(_onInnerChanged);
+          _innerCtrl = textController;
+          _innerCtrl!.addListener(_onInnerChanged);
+          // Seed initial value
+          if (widget.controller.text.isNotEmpty) {
+            textController.text = widget.controller.text;
+          }
+        }
+        return TextField(
+          controller: textController,
+          focusNode: focusNode,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            hintText: widget.hint,
+            prefixIcon: const Icon(Icons.family_restroom_outlined, size: 20),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+          onSubmitted: (_) => onSubmitted(),
+        );
+      },
+      onSelected: (String value) {
+        widget.controller.text = value;
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return InkWell(
+                    onTap: () => onSelected(option),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Text(option, style: const TextStyle(fontSize: 14)),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _innerCtrl?.removeListener(_onInnerChanged);
+    super.dispose();
   }
 }

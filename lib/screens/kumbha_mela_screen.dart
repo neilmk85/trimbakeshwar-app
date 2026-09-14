@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_l10n.dart';
 import '../utils/app_images.dart';
 import '../widgets/app_image.dart';
+import 'rooms_screen.dart';
 
 // ── Palette — matches card gradient (orange #FFB347 → yellow #FFE066) ─────────
 
@@ -281,7 +282,7 @@ class _CountdownBanner extends StatelessWidget {
 
 // ── Section heading ───────────────────────────────────────────────────────────
 
-Widget _heading(String title, IconData icon) => Padding(
+Widget _heading(String title) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
@@ -297,8 +298,6 @@ Widget _heading(String title, IconData icon) => Padding(
             ),
           ),
           const SizedBox(width: 10),
-          Icon(icon, size: 20, color: _saffronDark),
-          const SizedBox(width: 8),
           Text(title,
               style: const TextStyle(
                 fontSize: 17,
@@ -380,7 +379,7 @@ class _ImportantDatesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading(AppL10n.s.importantDates, Icons.calendar_month_rounded),
+        _heading(AppL10n.s.importantDates),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -491,7 +490,7 @@ class _EventHighlightsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading(AppL10n.s.eventHighlights, Icons.star_rounded),
+        _heading(AppL10n.s.eventHighlights),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -591,7 +590,7 @@ class _PlanYourVisitSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading(AppL10n.s.planYourVisit, Icons.map_rounded),
+        _heading(AppL10n.s.planYourVisit),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -668,7 +667,7 @@ class _GhatsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading('Important Ghats', Icons.water_rounded),
+        _heading('Important Ghats'),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -987,7 +986,7 @@ class _AkhadasSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading('Akhadas', Icons.groups_rounded),
+        _heading('Akhadas'),
         const SizedBox(height: 6),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1170,7 +1169,7 @@ class _ServicesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading(AppL10n.s.servicesLabel, Icons.miscellaneous_services_rounded),
+        _heading(AppL10n.s.servicesLabel),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1190,7 +1189,7 @@ class _ServicesSection extends StatelessWidget {
                   icon: Icons.hotel_rounded,
                   label: AppL10n.s.roomsCard,
                   color: const Color(0xFF1565C0),
-                  onTap: () {},
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RoomsScreen())),
                 ),
               ),
             ],
@@ -1291,7 +1290,7 @@ class _MapSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading(AppL10n.s.mapNavigation, Icons.map_rounded),
+        _heading(AppL10n.s.mapNavigation),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),

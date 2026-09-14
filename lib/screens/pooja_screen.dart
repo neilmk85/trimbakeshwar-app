@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
@@ -422,6 +423,7 @@ final Map<String, String> _poojaImage = {
   'Mahamrityunjay Jaap': AppImages.mahamrityunjayJaap,
   'Laghu Rudra Pooja':  AppImages.laghuRudra,
   'Navgrah Shanti':     AppImages.navgrahShanti,
+  'Vastu Shanti':       AppImages.vastuShanti,
 };
 
 // ── Card ──────────────────────────────────────────────────────────────────────
@@ -440,7 +442,7 @@ class _PoojaCard extends StatelessWidget {
   }
 
   void _openMuhurta(BuildContext context) {
-    showMuhurtaSheet(context, pooja.muhurtaDates, pooja.color);
+    showMuhurtaSheet(context, pooja, pooja.color);
   }
 
   void _bookNow(BuildContext context) {
@@ -466,227 +468,230 @@ class _PoojaCard extends StatelessWidget {
     final color = pooja.color;
     final symbol = _poojaSymbol[pooja.name] ?? 'ॐ';
     final imagePath = _poojaImage[pooja.name];
+    final desc = AppL10n.s.poojaDesc(pooja.name).isNotEmpty
+        ? AppL10n.s.poojaDesc(pooja.name)
+        : pooja.description;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── Header: image or gradient band ───────────────────────────
-            GestureDetector(
-              onTap: () => _openDetail(context),
-              child: SizedBox(
-              height: imagePath != null ? 140 : 46,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (imagePath != null)
-                    AppImage(src: imagePath, fit: BoxFit.cover, fallbackColor: color)
-                  else
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [color, color.withValues(alpha: 0.75)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                    ),
-                  // Gradient scrim for text readability
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.35),
-                          Colors.black.withValues(alpha: 0.82),
-                        ],
-                        stops: const [0.0, 0.45, 1.0],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                  // Symbol watermark
-                  Positioned(
-                    right: -6,
-                    top: -6,
-                    child: Text(
-                      symbol,
-                      style: TextStyle(
-                        fontSize: 72,
-                        color: Colors.white.withValues(alpha: 0.08),
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                  // Name + chips at bottom — single full-width pill
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                AppL10n.s.poojaName(pooja.name),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.1,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            _chip(Icons.schedule_rounded, AppL10n.s.poojaDuration(pooja.duration)),
-                            const SizedBox(width: 8),
-                            _boldChip('${pooja.pricePerPerson}'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ),
-
-            // ── Description ───────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-              child: Text(
-                AppL10n.s.poojaDesc(pooja.name).isNotEmpty
-                    ? AppL10n.s.poojaDesc(pooja.name)
-                    : pooja.description,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.grey700,
-                  height: 1.5,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
-            // ── Divider ───────────────────────────────────────────────────
-            Divider(
-              height: 1,
-              thickness: 1,
-              color: Colors.grey.shade100,
-              indent: 18,
-              endIndent: 18,
-            ),
-
-            // ── Action buttons ────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      _ActionButton(
-                        label: AppL10n.s.infoLabel,
-                        icon: Icons.info_outline_rounded,
-                        color: const Color(0xFF1565C0),
-                        filled: false,
-                        onTap: () => _openDetail(context),
-                      ),
-                      const SizedBox(width: 8),
-                      _ActionButton(
-                        label: AppL10n.s.muhurtaLabel,
-                        icon: Icons.calendar_month_rounded,
-                        color: const Color(0xFF1565C0),
-                        filled: false,
-                        onTap: () => _openMuhurta(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _ActionButton(
-                        label: AppL10n.s.bookNow,
-                        icon: Icons.bookmark_add_rounded,
-                        color: color,
-                        filled: true,
-                        onTap: () => _bookNow(context),
-                        price: null,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+    return GestureDetector(
+      onTap: () => _openDetail(context),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            children: [
+              // ── Background ─────────────────────────────────────────────
+              Positioned.fill(
+                child: imagePath != null
+                    ? AppImage(src: imagePath, fit: BoxFit.cover, fallbackColor: color)
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [color, color.withValues(alpha: 0.7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
+              ),
+              // ── Dark gradient scrim ─────────────────────────────────────
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0x22000000),
+                        Color(0x88000000),
+                        Color(0xEE000000),
+                      ],
+                      stops: [0.0, 0.45, 1.0],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ),
+              // ── Symbol watermark ────────────────────────────────────────
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Text(
+                  symbol,
+                  style: TextStyle(
+                    fontSize: 80,
+                    color: Colors.white.withValues(alpha: 0.07),
+                    height: 1,
+                  ),
+                ),
+              ),
+              // ── Content overlay ─────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        _pillChip(Icons.schedule_rounded, AppL10n.s.poojaDuration(pooja.duration)),
+                      ],
+                    ),
+                    const SizedBox(height: 90),
+                    Text(
+                      AppL10n.s.poojaName(pooja.name),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
+                        shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      desc,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        fontSize: 11.5,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _overlayBtn(
+                          icon: Icons.info_outline_rounded,
+                          label: AppL10n.s.infoLabel,
+                          onTap: () => _openDetail(context),
+                        ),
+                        const SizedBox(width: 6),
+                        _overlayBtn(
+                          icon: Icons.calendar_month_rounded,
+                          label: AppL10n.s.muhurtaLabel,
+                          onTap: () => _openMuhurta(context),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _bookNow(context),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 9),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.2),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.bookmark_add_rounded, size: 14, color: Colors.white),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        AppL10n.s.bookNow,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                      if (pooja.pricePerPerson > 0) ...[
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          '· ₹${pooja.pricePerPerson}',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.85),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _chip(IconData icon, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 11, color: Colors.white.withValues(alpha: 0.85)),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.white.withValues(alpha: 0.9),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+  Widget _pillChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: Colors.white.withValues(alpha: 0.9)),
+          const SizedBox(width: 3),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 
-  Widget _boldChip(String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.currency_rupee_rounded, size: 13, color: Colors.white.withValues(alpha: 0.9)),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 15,
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.2,
-          ),
+  Widget _overlayBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
         ),
-      ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
     );
   }
 }

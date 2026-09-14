@@ -44,6 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Gradle cache/build artifacts
+android/.gradle/
+android/app/.cxx/
+
 # Platform generated
 /android/local.properties
 /ios/.symlinks/

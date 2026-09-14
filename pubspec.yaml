@@ -1,7 +1,7 @@
 name: trimbakeshwar_app
 description: Trimbakeshwar Jyotirlinga Temple App
 publish_to: 'none'
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   url_launcher: ^6.2.1
+  share_plus: ^10.0.0
   cupertino_icons: ^1.0.6
   http: ^1.2.2
   font_awesome_flutter: ^11.0.0

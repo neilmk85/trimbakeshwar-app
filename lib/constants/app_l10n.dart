@@ -227,7 +227,8 @@ class AppL10n {
       ];
   String navTitle(int i) => navTitles[i];
 
-  String get trimbakeshwar => _t('Home', 'होम');
+  String get trimbakeshwar => _t('Trimbakeshwar', 'त्र्यंबकेश्वर');
+  String get trimbakNavLabel => _t('Trimbak', 'त्र्यंबक');
   String get guruji        => _t('Guruji',        'गुरुजी');
   String get pooja         => _t('Pooja',          'पूजा');
   String get rooms         => _t('Rooms',          'कक्ष');
@@ -239,7 +240,7 @@ class AppL10n {
 
   // ── Bottom nav (5 items) ───────────────────────────────────────────────────
   List<String> get bottomNavLabels =>
-      [trimbakeshwar, pooja, rooms, account, contact];
+      [trimbakNavLabel, pooja, rooms, account, contact];
 
   // ── Drawer items ───────────────────────────────────────────────────────────
   String get nearbyAttractions => _t('Nearby Attractions', 'पास के आकर्षण');
@@ -373,7 +374,7 @@ class AppL10n {
   String get gurujiRole =>
       _t('Vedic Purohit / Pandit & Spiritual Guide',
          'वैदिक पुजारी / पंडित एवं आध्यात्मिक मार्गदर्शक');
-  String get gurujiLocation  => _t('Gurukrupa Niwas, opposite Niranjani Akhada, Shri Swami Samartha Ring Road, Trimbakeshwar, Nashik - 422212', 'गुरुकृपा निवास, निरंजनी अखाड़े के सामने, श्री स्वामी समर्थ रिंग रोड, त्र्यंबकेश्वर, नाशिक - ४२२२१२');
+  String get gurujiLocation  => _t('Gurukrupa Niwas, opposite Niranjani Akhada,\nShri Swami Samartha Ring Road,\nTrimbakeshwar, Nashik — 422212', 'गुरुकृपा निवास, निरंजनी अखाड्याच्या समोर,\nश्री स्वामी समर्थ रिंग रोड,\nत्र्यंबकेश्वर, नाशिक — ४२२२१२');
   String get aboutGuruji     => _t('About Guruji',          'गुरुजी के बारे में');
   String get expertiseHeading=> _t('Expertise',             'विशेषज्ञता');
   String get directionsLabel => _t('Directions',            'दिशा-निर्देश');
@@ -463,7 +464,7 @@ class AppL10n {
   String get fullName          => _t('Full Name',             'पूरा नाम');
   String get phoneNumber       => _t('Phone Number',          'फोन नंबर');
   String get numberOfPersons   => _t('Number of Persons for Pooja', 'पूजा के लिए व्यक्तियों की संख्या');
-  String get dateLabel         => _t('Date',                  'तिथि');
+  String get dateLabel         => _t('Pooja Date',             'पूजा तिथि');
   String get totalAmount       => _t('Total Amount',          'कुल राशि');
   String get proceedToPayment  => _t('Proceed to Payment',    'भुगतान करें');
   String get stayRequired      => _t('Book Room','कमरा बुक करें');
@@ -851,8 +852,8 @@ class AppL10n {
   );
 
   String get kumbhaLocation => _t(
-    'Gurukrupa Niwas, opposite Niranjani Akhada, Shri Swami Samartha Ring Road, Trimbakeshwar, Nashik - 422212',
-    'गुरुकृपा निवास, निरंजनी अखाड़े के सामने, श्री स्वामी समर्थ रिंग रोड, त्र्यंबकेश्वर, नाशिक - ४२२२१२',
+    'Gurukrupa Niwas, opposite Niranjani Akhada,\nShri Swami Samartha Ring Road,\nTrimbakeshwar, Nashik — 422212',
+    'गुरुकृपा निवास, निरंजनी अखाड्याच्या समोर,\nश्री स्वामी समर्थ रिंग रोड,\nत्र्यंबकेश्वर, नाशिक — ४२२२१२',
   );
 
   String get kumbhaDistance => _t(

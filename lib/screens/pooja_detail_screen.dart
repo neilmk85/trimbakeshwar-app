@@ -149,7 +149,7 @@ class _PoojaDetailScreenState extends State<PoojaDetailScreen> {
                       dark: dark,
                       heroImage: heroImage,
                       onMuhurtaTap: () =>
-                          showMuhurtaSheet(context, pooja.muhurtaDates, color),
+                          showMuhurtaSheet(context, pooja, color),
                     ),
                   ),
                 ),
@@ -200,13 +200,10 @@ class _PoojaDetailScreenState extends State<PoojaDetailScreen> {
             ),
             Positioned(
               bottom: 0, left: 0, right: 0,
-              child: SafeArea(
-                top: false,
-                child: _BookButton(
-                  color: color,
-                  dark: dark,
-                  onTap: () => _book(context),
-                ),
+              child: _BookButton(
+                color: color,
+                dark: dark,
+                onTap: () => _book(context),
               ),
             ),
           ],
@@ -748,8 +745,9 @@ class _BookButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottomInset),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -809,25 +807,86 @@ class _BookButton extends StatelessWidget {
 
 // ── Muhurta Calendar Bottom Sheet ─────────────────────────────────────────────
 
-void showMuhurtaSheet(BuildContext context, List<DateTime> muhurtaDates, Color color) {
+void showMuhurtaSheet(BuildContext context, PoojaModel pooja, Color color) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => MuhurtaCalendarSheet(
-        muhurtaDates: muhurtaDates, color: AppColors.primary),
+    builder: (sheetCtx) => MuhurtaCalendarSheet(
+      muhurtaDates: pooja.muhurtaDates,
+      color: AppColors.primary,
+      onDateSelected: (date) {
+        Navigator.pop(sheetCtx); // close sheet
+        final formatted =
+            '${date.day} ${AppL10n.s.monthNames[date.month - 1]} ${date.year}';
+        showDialog(
+          context: context,
+          builder: (dlgCtx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              'Book ${pooja.name} on this date?',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            content: Text(
+              formatted,
+              style: const TextStyle(fontSize: 15, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dlgCtx),
+                child: Text(AppL10n.s.cancelLabel,
+                    style: const TextStyle(color: AppColors.grey700)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.pop(dlgCtx);
+                  if (AuthService.isLoggedIn) {
+                    Navigator.push(
+                      context,
+                      fadeSlideRoute((_) => BookingScreen(
+                            selectedPooja: pooja.name,
+                            preselectedDate: date,
+                          )),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      fadeSlideRoute((_) => LoginScreen(
+                            onLoginSuccess: (_) => BookingScreen(
+                                  selectedPooja: pooja.name,
+                                  preselectedDate: date,
+                                ),
+                          )),
+                    );
+                  }
+                },
+                child: Text(AppL10n.s.bookNow),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
   );
 }
 
 class MuhurtaCalendarSheet extends StatefulWidget {
   final List<DateTime> muhurtaDates;
   final Color color;
+  final void Function(DateTime)? onDateSelected;
 
   const MuhurtaCalendarSheet({
     super.key,
     required this.muhurtaDates,
     required this.color,
+    this.onDateSelected,
   });
 
   @override
@@ -1002,28 +1061,39 @@ class _MuhurtaCalendarSheetState extends State<MuhurtaCalendarSheet> {
                   index - startOffset + 1);
               final isMuhurta = _isMuhurta(day);
               final isToday = day == today;
-              return Center(
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: isMuhurta
-                        ? Colors.orange.withValues(alpha: 0.18)
-                        : null,
-                    shape: BoxShape.circle,
-                    border: isToday
-                        ? Border.all(color: widget.color, width: 1.5)
-                        : null,
-                  ),
+              final isPast = day.isBefore(today);
+              final tappable = !isPast && widget.onDateSelected != null;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: tappable ? () => widget.onDateSelected!(day) : null,
+                  borderRadius: BorderRadius.circular(17),
                   child: Center(
-                    child: Text(
-                      '${day.day}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isMuhurta
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isMuhurta ? Colors.orange.shade800 : AppColors.grey700,
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: isMuhurta
+                            ? Colors.orange.withValues(alpha: isPast ? 0.07 : 0.18)
+                            : null,
+                        shape: BoxShape.circle,
+                        border: isToday
+                            ? Border.all(color: widget.color, width: 1.5)
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${day.day}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isMuhurta ? FontWeight.bold : FontWeight.normal,
+                            color: isMuhurta
+                                ? (isPast
+                                    ? Colors.orange.withValues(alpha: 0.35)
+                                    : Colors.orange.shade800)
+                                : (isPast ? AppColors.grey300 : AppColors.grey700),
+                          ),
+                        ),
                       ),
                     ),
                   ),

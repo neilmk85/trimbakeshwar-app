@@ -136,9 +136,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
           elevation: 0,
         );
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: RefreshIndicator(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: widget.backToPoojas ? 1 : 3)),
+          (_) => false,
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: RefreshIndicator(
         onRefresh: _refresh,
         color: AppColors.primary,
         child: ValueListenableBuilder<List<OrderModel>>(
@@ -204,7 +213,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             );
           },
         ),
-      ),
+      )),
     );
   }
 }

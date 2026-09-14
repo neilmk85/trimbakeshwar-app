@@ -289,8 +289,8 @@ class NearbyAttractionsScreen extends StatelessWidget {
                 centerTitle: true,
                 iconTheme: const IconThemeData(color: Colors.white),
                 leading: IconButton(
-                  icon: const Icon(Icons.menu_rounded, color: Colors.white),
-                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  onPressed: () => Navigator.pop(ctx),
                 ),
                 flexibleSpace: Container(
                   decoration: const BoxDecoration(

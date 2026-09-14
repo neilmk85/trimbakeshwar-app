@@ -349,13 +349,19 @@ class ApiService {
   // ── Payments ───────────────────────────────────────────────────────────────
 
   /// Creates a Razorpay order. Returns data map on success or error string on failure.
-  static Future<({Map<String, dynamic>? data, String? error})> createRazorpayOrder(int amount, String receipt) async {
+  static Future<({Map<String, dynamic>? data, String? error})> createRazorpayOrder(
+    int amount,
+    String receipt, {
+    List<Map<String, dynamic>>? bookings,
+  }) async {
     try {
+      final payload = <String, dynamic>{'amount': amount, 'receipt': receipt};
+      if (bookings != null && bookings.isNotEmpty) payload['bookings'] = bookings;
       final res = await http
           .post(
             Uri.parse('$_base/payments/create-order'),
             headers: _headers,
-            body: jsonEncode({'amount': amount, 'receipt': receipt}),
+            body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 10));
       final body = jsonDecode(res.body) as Map<String, dynamic>;

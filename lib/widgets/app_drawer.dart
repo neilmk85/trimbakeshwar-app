@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../constants/constants.dart';
 import '../constants/app_l10n.dart';
 import '../models/user_model.dart';
@@ -52,6 +53,7 @@ class AppDrawer extends StatelessWidget {
         _buildInstructionsItem(context),
         // Language toggle
         _buildLanguageToggleItem(context),
+        _buildShareItem(context),
         // Auth
         _buildAuthItem(context, user),
         if (user != null) _buildMyOrdersItem(context),
@@ -492,6 +494,24 @@ class AppDrawer extends StatelessWidget {
         onTap: () async {
           await LanguageService.toggle();
           if (context.mounted) Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  Widget _buildShareItem(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: ListTile(
+        leading: const Icon(Icons.share_rounded, color: AppColors.primary, size: 24),
+        title: const Text(
+          'Share App',
+          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary, fontSize: 15),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onTap: () {
+          Navigator.pop(context);
+          Share.share('Book Trimbakeshwar Poojas & Rooms easily with our app!\n\nhttps://play.google.com/store/apps/details?id=com.trimbakeshwarpoojavidhi.app');
         },
       ),
     );

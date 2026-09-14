@@ -521,17 +521,19 @@ class _RoomCard extends StatelessWidget {
                                   style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.navyDeep),
+                                      color: AppColors.navyDeep,
+                                      decoration: TextDecoration.none),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '₹${room.pricePerNight} / ${AppL10n.s.perNight}',
-                                  style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: color),
+                                  '${room.availableCount} Available',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.grey500,
+                                      decoration: TextDecoration.none),
                                 ),
                               ],
                             ),
@@ -541,16 +543,16 @@ class _RoomCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Text(
-                                '${room.availableCount}',
-                                style: const TextStyle(
-                                  fontSize: 20,
+                                '₹${room.pricePerNight}',
+                                style: TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w900,
-                                  color: Colors.black,
+                                  color: color,
                                   height: 1,
                                 ),
                               ),
                               Text(
-                                'Available',
+                                AppL10n.s.perNight,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   fontSize: 9,
@@ -566,27 +568,6 @@ class _RoomCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _openDetail(context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.remove_red_eye_rounded, size: 11, color: color),
-                                    const SizedBox(width: 3),
-                                    Text(AppL10n.s.viewLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 5),
                           Expanded(
                             child: GestureDetector(
                               onTap: room.available

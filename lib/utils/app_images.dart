@@ -32,6 +32,7 @@ class AppImages {
   static final String mahamrityunjayJaap = url('mahamrutunjay-jaap-banner.png');
   static final String laghuRudra        = url('laghu-rudra.png');
   static final String navgrahShanti     = url('navagraha-shanti.png');
+  static final String vastuShanti      = url('vastu-shanti.jpeg');
 
   // ── Guruji ────────────────────────────────────────────────────────────────
   static final String skGuruji        = url('sk_guruji.png');

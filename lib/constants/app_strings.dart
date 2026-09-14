@@ -12,10 +12,10 @@ class AppStrings {
   static const String jyotirlinga = 'ज्योतिर्लिंग';
 
   // Drawer / Nav
-  static const String drawerName = 'Sandip Kulkarni Guruji';
+  static const String drawerName = 'Trimbakeshwar Guruji';
   static const String drawerPhone = '+91 94239 12416';
   static const String drawerEmail = 'pooja@trimbakeshwarpoojavidhi.in';
-  static const String drawerLocation = 'Gurukrupa Niwas, opposite Niranjani Akhada, Shri Swami Samartha Ring Road, Trimbakeshwar, Nashik - 422212';
+  static const String drawerLocation = 'Gurukrupa Niwas, opposite Niranjani Akhada,\nShri Swami Samartha Ring Road,\nTrimbakeshwar, Nashik — 422212';
 
   // Contact
   static const String phoneNumber = '+919423912416';
@@ -37,9 +37,9 @@ class AppStrings {
   static const String youtubeUrl = 'https://www.youtube.com/@kaalsarpashanti';
 
   // Guruji
-  static const String gurujiName = 'Sandeep Kulkarni Guruji';
+  static const String gurujiName = 'Sandip Kulkarni Guruji';
   static const String gurujiRole = 'Vedic Purohit / Pandit & Spiritual Guide';
-  static const String gurujiLocation = 'Gurukrupa Niwas, opposite Niranjani Akhada, Shri Swami Samartha Ring Road, Trimbakeshwar, Nashik - 422212';
+  static const String gurujiLocation = 'Gurukrupa Niwas, opposite Niranjani Akhada,\nShri Swami Samartha Ring Road,\nTrimbakeshwar, Nashik — 422212';
   static const String gurujiAbout =
       'Our Guruji is a renowned Vedic priest at Trimbakeshwar temple with over '
       '25 years of experience in performing sacred rituals and poojas. Born into '

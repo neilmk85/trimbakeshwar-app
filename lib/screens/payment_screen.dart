@@ -92,8 +92,15 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
       final now = DateTime.now();
       final baseOrderId = _shortOrderId(now);
 
-      // Step 1 — create Razorpay order on server
-      final result = await ApiService.createRazorpayOrder(_data.grandTotal, baseOrderId);
+      // Build booking payloads first so they can be sent with create-order (webhook recovery)
+      _pendingBookings = _buildBookingPayloads(baseOrderId, now, user.phone);
+
+      // Step 1 — create Razorpay order on server (sends bookings for webhook recovery)
+      final result = await ApiService.createRazorpayOrder(
+        _data.grandTotal,
+        baseOrderId,
+        bookings: _pendingBookings,
+      );
       if (result.data == null) {
         if (mounted) {
           setState(() => _processing = false);
@@ -105,7 +112,6 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
       final orderData = result.data!;
       _pendingOrderId = baseOrderId;
       _pendingRazorpayOrderId = orderData['razorpayOrderId'] as String;
-      _pendingBookings = _buildBookingPayloads(baseOrderId, now, user.phone);
 
       if (kIsWeb) {
         // ── Web: use JS SDK ───────────────────────────────────────────────────

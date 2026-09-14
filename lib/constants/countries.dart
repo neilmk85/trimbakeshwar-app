@@ -85,4 +85,24 @@ class AppCountries {
     'Zambia',
     'Mozambique',
   ];
+
+  static const List<String> indianCities = [
+    'Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Ahmedabad', 'Chennai',
+    'Kolkata', 'Pune', 'Jaipur', 'Surat', 'Lucknow', 'Kanpur', 'Nagpur',
+    'Indore', 'Thane', 'Bhopal', 'Visakhapatnam', 'Pimpri-Chinchwad',
+    'Patna', 'Vadodara', 'Ghaziabad', 'Ludhiana', 'Agra', 'Nashik',
+    'Faridabad', 'Meerut', 'Rajkot', 'Varanasi', 'Srinagar', 'Aurangabad',
+    'Dhanbad', 'Amritsar', 'Navi Mumbai', 'Allahabad', 'Ranchi', 'Howrah',
+    'Coimbatore', 'Jabalpur', 'Gwalior', 'Vijayawada', 'Jodhpur', 'Madurai',
+    'Raipur', 'Kota', 'Guwahati', 'Chandigarh', 'Solapur', 'Hubli',
+    'Tiruchirappalli', 'Bareilly', 'Mysore', 'Tiruppur', 'Gurgaon', 'Aligarh',
+    'Jalandhar', 'Bhubaneswar', 'Salem', 'Mira-Bhayandar', 'Warangal',
+    'Guntur', 'Bhiwandi', 'Saharanpur', 'Gorakhpur', 'Bikaner', 'Amravati',
+    'Noida', 'Jamshedpur', 'Bhilai', 'Cuttack', 'Firozabad', 'Kochi',
+    'Bhavnagar', 'Dehradun', 'Durgapur', 'Asansol', 'Nanded', 'Kolhapur',
+    'Ajmer', 'Latur', 'Udaipur', 'Siliguri', 'Jhansi', 'Ulhasnagar',
+    'Jammu', 'Sangli', 'Mangalore', 'Erode', 'Belgaum', 'Ambattur',
+    'Tirunelveli', 'Malegaon', 'Gaya', 'Jalgaon', 'Maheshtala', 'Shimla',
+    'Trimbak', 'Trimbakeshwar',
+  ];
 }
